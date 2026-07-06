@@ -9,7 +9,7 @@ const firebaseConfig = {
     measurementId: "G-95YDH60VRE"
 };
 
-const PLATFORM_ID = 'R10';
+window.PLATFORM_ID = 'R10';
 
 // Inicializar Firebase (Compatible con la versión compat/v9 que estamos usando en los scripts del HTML)
 if (!firebase.apps.length) {

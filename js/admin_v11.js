@@ -20,7 +20,7 @@ async function loadStudentsFromFirebase() {
         let coursesSnap = null;
         try {
             if (adminSession.role === 'super-admin') {
-                coursesSnap = await db.collection('cursos').where('platformId', '==', PLATFORM_ID).get();
+                coursesSnap = await db.collection('cursos').where('platformId', '==', window.PLATFORM_ID).get();
                 if (coursesSnap.empty) {
                     // Si no hay cursos para esta plataforma, podríamos crear unos iniciales o dejarlo vacío
                     // Por ahora, si es super-admin y está vacío, no creamos los de CFP 403 por defecto.
@@ -778,7 +778,7 @@ function initNotifications() {
     if (notificationsListener) notificationsListener();
     notificationsListener = db.collection('entregas')
         .where('estado', '==', 'Pendiente')
-        .where('platformId', '==', PLATFORM_ID)
+        .where('platformId', '==', window.PLATFORM_ID)
         .onSnapshot(snap => {
         const b = document.getElementById('notif-count');
         if (b) {
@@ -897,7 +897,7 @@ async function saveNewCourse() {
     if (!id || !nombre) return cfpAlert("ERROR", "Completa los campos.");
     try {
         // 1. Crear el curso en la lista maestra
-        await db.collection('cursos').doc(id).set({ nombre, materia: base, activo: true, platformId: PLATFORM_ID });
+        await db.collection('cursos').doc(id).set({ nombre, materia: base, activo: true, platformId: window.PLATFORM_ID });
         
         // 2. Inicializar el cronograma de contenidos para este curso
         await db.collection('config_cursos').doc(id).set({ materiales: {} }, { merge: true });
@@ -1136,7 +1136,7 @@ async function sendMessageAdmin() {
             fecha: new Date().toISOString(),
             timestamp: new Date().toISOString(), // redundancia por soporte antiguo
             respuesta_a: isReplying ? { name: replyToName, mensaje: "Respuesta desde Admin" } : null,
-            platformId: PLATFORM_ID
+            platformId: window.PLATFORM_ID
         });
         input.value = '';
         cancelReplyAdmin();
@@ -1162,7 +1162,7 @@ function openCreateUserModal() {
     
     const chkBoxDiv = document.getElementById('adm-cursos-checkboxes');
     chkBoxDiv.innerHTML = '';
-    db.collection('cursos').where('platformId', '==', PLATFORM_ID).get().then(snap => {
+    db.collection('cursos').where('platformId', '==', window.PLATFORM_ID).get().then(snap => {
         snap.forEach(doc => {
             const course = doc.data();
             const div = document.createElement('div');
@@ -1233,7 +1233,7 @@ async function loadCoursesManager() {
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando estructura académica...</td></tr>';
     try {
-        const snap = await db.collection('cursos').where('platformId', '==', PLATFORM_ID).get();
+        const snap = await db.collection('cursos').where('platformId', '==', window.PLATFORM_ID).get();
         tbody.innerHTML = '';
         snap.forEach(doc => {
             const c = doc.data();
