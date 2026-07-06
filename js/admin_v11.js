@@ -304,7 +304,7 @@ async function showTable(course) {
         tbody.innerHTML = '';
 
         studentData[course].forEach(s => {
-            const eAlu = entregas.filter(e => e.alumno_dni === s.dni);
+            const eAlu = entregas.filter(e => String(e.alumno_dni).trim() === String(s.dni).trim());
             const corr = eAlu.filter(e => e.estado === 'Calificado');
             const pend = eAlu.filter(e => e.estado === 'Pendiente');
             const prom = corr.length > 0 ? (corr.reduce((a, b) => a + parseFloat(b.nota || 0), 0) / corr.length).toFixed(1) : '-';
@@ -484,7 +484,7 @@ async function downloadCourseExcel() {
         const entregas = snapEnt.docs.map(doc => doc.data());
 
         const excelData = studentData[currentViewedCourse].map(s => {
-            const eAlu = entregas.filter(e => e.alumno_dni === s.dni);
+            const eAlu = entregas.filter(e => String(e.alumno_dni).trim() === String(s.dni).trim());
             const corr = eAlu.filter(e => e.estado === 'Calificado');
             const prom = corr.length > 0 ? (corr.reduce((a, b) => a + parseFloat(b.nota || 0), 0) / corr.length).toFixed(1) : '---';
 
@@ -1162,7 +1162,7 @@ function openCreateUserModal() {
     
     const chkBoxDiv = document.getElementById('adm-cursos-checkboxes');
     chkBoxDiv.innerHTML = '';
-    db.collection('cursos').get().then(snap => {
+    db.collection('cursos').where('platformId', '==', PLATFORM_ID).get().then(snap => {
         snap.forEach(doc => {
             const course = doc.data();
             const div = document.createElement('div');
@@ -1233,7 +1233,7 @@ async function loadCoursesManager() {
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando estructura académica...</td></tr>';
     try {
-        const snap = await db.collection('cursos').get();
+        const snap = await db.collection('cursos').where('platformId', '==', PLATFORM_ID).get();
         tbody.innerHTML = '';
         snap.forEach(doc => {
             const c = doc.data();
