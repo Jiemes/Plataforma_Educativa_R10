@@ -18,6 +18,69 @@ function closeCfpAlert() {
 
 if (!studentSession) { window.location.href = 'index.html'; }
 
+function getCourseIcon(courseName) {
+    const name = String(courseName || '').toUpperCase();
+
+    // 1. Robótica y Automatización -> Brazo robótico
+    if (name.includes('ROBÓTICA') || name.includes('ROBOTICA') || name.includes('AUTOMATIZACIÓN') || name.includes('AUTOMATIZACION')) {
+        return '🦾';
+    }
+
+    // 2. Diseño y Fabricación Digital - 3D -> Impresora 3D
+    if (name.includes('3D') || name.includes('FABRICACIÓN') || name.includes('FABRICACION') || name.includes('IMPRESIÓN') || name.includes('IMPRESION')) {
+        return '🖨️';
+    }
+
+    // 3. Pensamiento Computacional / Inteligencia Artificial / IA -> Logo con las letras I.A.
+    if (name.includes('PENSAMIENTO') || name.includes('INTELIGENCIA ARTIFICIAL') || name.includes('I.A.') || /\bIA\b/.test(name)) {
+        return '<span class="icon-ia-logo">I.A.</span>';
+    }
+
+    // 4. Habilidades Digitales -> Computadora
+    if (name.includes('HABILIDADES') || name.includes('COMPUTAD') || name.includes('OFIMÁT') || name.includes('OFIMAT')) {
+        return '💻';
+    }
+
+    // 5. Software / Videojuegos / Programación -> Mando de videojuegos
+    if (name.includes('PROGRAMACIÓN') || name.includes('PROGRAMACION') || name.includes('PROGRAMADOR') || name.includes('SOFTWARE') || name.includes('VIDEOJUEGO')) {
+        return '🎮';
+    }
+
+    // 6. Diseño Gráfico / Publicidad / Marketing
+    if (name.includes('DISEÑO') || name.includes('DISENO') || name.includes('MARKETING') || name.includes('PUBLICID')) {
+        return '🎨';
+    }
+
+    // 7. Gastronomía / Cocinero / Pastas / Comedor
+    if (name.includes('COCIN') || name.includes('PASTA') || name.includes('COMEDOR') || name.includes('GASTRONOM')) {
+        return '🍳';
+    }
+
+    // 8. Idiomas / Inglés
+    if (name.includes('INGLÉS') || name.includes('INGLES') || name.includes('IDIOMA')) {
+        return '🌐';
+    }
+
+    // 9. Horticultura / Huerta / Jardinería / Agro
+    if (name.includes('HORTICULT') || name.includes('HUERTA') || name.includes('JARDIN') || name.includes('AGRO')) {
+        return '🌱';
+    }
+
+    // 10. Textil / Costura / Confección
+    if (name.includes('TEXTIL') || name.includes('COSTURA') || name.includes('CONFECC') || name.includes('MODA')) {
+        return '🧵';
+    }
+
+    // 11. Electricidad / Electrónica
+    if (name.includes('ELECTRIC') || name.includes('ELECTRÓN') || name.includes('ELECTRON')) {
+        return '⚡';
+    }
+
+    // Default: Computadora si dice digital, sino birrete académico
+    if (name.includes('DIGITAL')) return '💻';
+    return '🎓';
+}
+
 async function initStudentDashboard() {
     const homeName = document.getElementById('home-student-name');
     if (homeName) {
@@ -45,27 +108,33 @@ async function initStudentDashboard() {
     }
 
     grid.innerHTML = '';
-    studentSession.cursos.forEach(curso => {
-        const entregasCurso = todasLasEntregas.filter(e => e.curso === curso.id);
-        const total = entregasCurso.reduce((sum, e) => sum + parseFloat(e.nota || 0), 0);
-        const prom = entregasCurso.length > 0 ? (total / entregasCurso.length).toFixed(1) : '---';
+    
+    if (studentSession.cursos && studentSession.cursos.length > 0) {
+        studentSession.cursos.forEach(curso => {
+            const entregasCurso = todasLasEntregas.filter(e => e.curso === curso.id);
+            const total = entregasCurso.reduce((sum, e) => sum + parseFloat(e.nota || 0), 0);
+            const prom = entregasCurso.length > 0 ? (total / entregasCurso.length).toFixed(1) : '---';
 
-        const card = document.createElement('div');
-        card.className = 'course-card animated-in';
-        card.innerHTML = `
-            <div class="course-icon">${curso.id === 'habilidades' ? '💻' : '🚀'}</div>
-            <h3 style="font-size:1.4rem; font-weight:800; margin-bottom:5px;">${curso.nombre}</h3>
-            <div style="margin-bottom:15px;">
-                <span style="background:var(--primary-light); color:var(--primary-color); padding:4px 10px; border-radius:10px; font-weight:800; font-size:0.8rem;">
-                    🎯 Promedio: ${prom}
-                </span>
-            </div>
-            <p style="font-size:0.9rem; color:#64748b; margin-bottom:20px;">Accede a tus materiales y realiza tus entregas.</p>
-            <button class="btn-enter-course">INGRESAR AL CURSO</button>
-        `;
-        card.onclick = () => selectCourse(curso.id, curso.nombre);
-        grid.appendChild(card);
-    });
+            const card = document.createElement('div');
+            card.className = 'course-card animated-in';
+            card.innerHTML = `
+                <div class="course-icon">${getCourseIcon(curso.nombre)}</div>
+                <h3 style="font-size:1.4rem; font-weight:800; margin-bottom:5px;">${curso.nombre}</h3>
+                <div style="margin-bottom:15px;">
+                    <span style="background:var(--primary-light); color:var(--primary-color); padding:4px 10px; border-radius:10px; font-weight:800; font-size:0.8rem;">
+                        🎯 Promedio: ${prom}
+                    </span>
+                </div>
+                <p style="font-size:0.9rem; color:#64748b; margin-bottom:20px;">Accede a tus materiales y realiza tus entregas.</p>
+                <button class="btn-enter-course">INGRESAR AL CURSO</button>
+            `;
+            card.onclick = () => selectCourse(curso.id, curso.nombre);
+            grid.appendChild(card);
+        });
+    } else {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 20px; color:#64748b;">No tienes cursos inscritos aún. Revisa la vidriera abajo.</div>';
+    }
+
 
     // AGREGAR CARD DE FORMACIÓN PROFESIONAL
     const fpCard = document.createElement('div');
@@ -85,6 +154,287 @@ async function initStudentDashboard() {
     grid.appendChild(fpCard);
 
     updateHeaderButton();
+    loadAvailableCourses();
+    checkOnboardingTour();
+}
+
+function checkOnboardingTour() {
+    // Verificar si el usuario ya vio el tour en este dispositivo
+    const hasSeenTour = localStorage.getItem('r10_tour_seen_' + studentSession.dni);
+    if (!hasSeenTour) {
+        setTimeout(() => {
+            const modal = document.getElementById('tour-modal');
+            if (modal) modal.classList.remove('hidden');
+        }, 500); // Pequeño retraso para que cargue la UI
+    }
+}
+
+function closeTour() {
+    const modal = document.getElementById('tour-modal');
+    if (modal) modal.classList.add('hidden');
+    localStorage.setItem('r10_tour_seen_' + studentSession.dni, 'true');
+}
+
+async function loadAvailableCourses() {
+    const gridAbiertos = document.getElementById('home-available-courses');
+    if (!gridAbiertos) return;
+    
+    try {
+        const snap = await db.collection('cursos')
+            .where('platformId', '==', window.PLATFORM_ID || 'r10')
+            .where('inscripcion_abierta', '==', true)
+            .get();
+            
+        if (snap.empty) {
+            gridAbiertos.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 20px; color:#64748b; font-size:0.9rem;">No hay cursos abiertos a inscripción en este momento.</div>';
+            return;
+        }
+
+        gridAbiertos.innerHTML = '';
+        let count = 0;
+        snap.forEach(doc => {
+            const c = doc.data();
+            
+            // Si el alumno ya está anotado en este curso, no lo mostramos en la vidriera
+            if (studentSession.cursos && studentSession.cursos.find(sc => sc.id === doc.id)) return;
+            
+            count++;
+            const card = document.createElement('div');
+            card.className = 'course-card animated-in';
+            card.style.border = '2px solid #00b9e8';
+            card.style.cursor = 'pointer';
+            card.innerHTML = `
+                <div class="course-icon" style="background:#e0f2fe;">${getCourseIcon(c.nombre)}</div>
+                <h3 style="font-size:1.35rem; font-weight:800; margin:12px 0 8px 0; color:#0f172a; line-height:1.25;">${c.nombre}</h3>
+                <div style="margin-bottom:20px;">
+                    <span style="background:#e0f2fe; color:#0284c7; padding:5px 12px; border-radius:10px; font-weight:800; font-size:0.78rem; letter-spacing:0.5px;">
+                        INSCRIPCIÓN ABIERTA
+                    </span>
+                </div>
+                <button class="btn-enter-course" style="background:linear-gradient(135deg, #00b9e8, #0284c7); color:white; font-weight:800; border:none; box-shadow:0 4px 14px rgba(0, 185, 232, 0.35);">VER INFORMACIÓN E INSCRIBIRME</button>
+            `;
+            card.onclick = () => openCourseEnrollModal(doc.id, c.nombre, c.materia || '');
+            gridAbiertos.appendChild(card);
+        });
+        
+        if (count === 0) {
+            gridAbiertos.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 20px; color:#64748b; font-size:0.9rem;">Ya estás inscripto en todos los cursos disponibles.</div>';
+        }
+        
+    } catch (e) {
+        console.error("Error cargando vidriera:", e);
+        gridAbiertos.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:red;">Error cargando cursos.</div>';
+    }
+}
+
+let currentPendingEnrollment = null;
+let lastEnrolledCourse = null;
+
+function escapeHtml(str) {
+    return String(str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+async function openCourseEnrollModal(courseId, courseName, courseMateria) {
+    currentPendingEnrollment = { id: courseId, name: courseName, materia: courseMateria };
+    
+    const modal = document.getElementById('course-enroll-modal');
+    if (!modal) return;
+
+    document.getElementById('enroll-modal-title').innerText = courseName;
+    const catEl = document.getElementById('enroll-modal-category');
+    if (catEl) catEl.style.display = 'none';
+    
+    const container = document.getElementById('enroll-materials-container');
+    container.innerHTML = `
+        <div style="grid-column: 1/-1; text-align:center; padding: 25px; color:#64748b;">
+            <div class="spinner-premium" style="margin: 0 auto 10px auto;"></div>
+            <p style="font-size:0.85rem; font-weight:600;">Cargando propuesta y programa del curso...</p>
+        </div>
+    `;
+
+    const btnConfirm = document.getElementById('btn-confirm-enrollment');
+    if (btnConfirm) {
+        btnConfirm.disabled = false;
+        btnConfirm.innerHTML = '🚀 CONFIRMAR INSCRIPCIÓN AL CURSO';
+    }
+
+    modal.classList.remove('hidden');
+
+    // Cargar documentos desde config_cursos
+    let welcomeUrl = '';
+    let syllabusUrl = '';
+    try {
+        let config = null;
+        const configSnap = await db.collection('config_cursos').doc(courseId).get();
+        if (configSnap.exists) {
+            config = configSnap.data();
+        } else if (courseMateria) {
+            const fallbackSnap = await db.collection('config_cursos').doc(courseMateria).get();
+            if (fallbackSnap.exists) config = fallbackSnap.data();
+        }
+
+        if (config) {
+            const matInicio = (config.materiales && config.materiales.inicio) || (config.materials && config.materials.inicio) || {};
+            welcomeUrl = matInicio.welcome || config.welcome_url || '';
+            syllabusUrl = matInicio.syllabus || config.syllabus_url || '';
+        }
+    } catch (e) {
+        console.warn("Error cargando materiales para modal de inscripción:", e);
+    }
+
+    // Renderizar tarjetas de Bienvenida y Programa
+    container.innerHTML = `
+        <div class="enroll-doc-card">
+            <div class="enroll-doc-card-top">
+                <div class="enroll-doc-icon">👋</div>
+                <div class="enroll-doc-info">
+                    <h4>Mensaje de Bienvenida</h4>
+                    <p>Presentación docente, pautas de cursada y objetivos iniciales.</p>
+                </div>
+            </div>
+            ${welcomeUrl ? `
+                <button type="button" class="btn-doc-preview" onclick="openEnrollDocModal('${welcomeUrl}', 'Bienvenida - ${escapeHtml(courseName)}')">
+                    📖 Leer Bienvenida
+                </button>
+            ` : `
+                <span class="badge-pending">Disponible al iniciar</span>
+            `}
+        </div>
+
+        <div class="enroll-doc-card">
+            <div class="enroll-doc-card-top">
+                <div class="enroll-doc-icon">📋</div>
+                <div class="enroll-doc-info">
+                    <h4>Programa Académico</h4>
+                    <p>Contenidos temáticos, cronograma de actividades y competencias a adquirir.</p>
+                </div>
+            </div>
+            ${syllabusUrl ? `
+                <button type="button" class="btn-doc-preview" onclick="openEnrollDocModal('${syllabusUrl}', 'Programa - ${escapeHtml(courseName)}')">
+                    📋 Ver Programa
+                </button>
+            ` : `
+                <span class="badge-pending">Programa en elaboración</span>
+            `}
+        </div>
+    `;
+}
+
+function closeCourseEnrollModal() {
+    const modal = document.getElementById('course-enroll-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function openEnrollDocModal(url, title) {
+    const modal = document.getElementById('enroll-doc-modal');
+    const iframe = document.getElementById('enroll-doc-iframe');
+    const titleEl = document.getElementById('enroll-doc-title');
+    const extLink = document.getElementById('enroll-doc-external-link');
+    const loader = document.getElementById('enroll-doc-loader');
+
+    if (!modal || !iframe) return;
+
+    if (titleEl) titleEl.innerText = title || "Documento Informativo";
+    if (extLink) extLink.href = url;
+
+    let finalUrl = url;
+    if (url.includes('drive.google.com')) {
+        const idMatch = url.match(/\/d\/(.+?)(\/|$)/) || url.match(/id=(.+?)(&|$)/);
+        if (idMatch) finalUrl = `https://drive.google.com/file/d/${idMatch[1]}/preview?view=fitH`;
+    }
+
+    if (loader) loader.style.display = 'flex';
+    iframe.onload = () => {
+        if (loader) loader.style.display = 'none';
+    };
+    iframe.src = finalUrl;
+
+    modal.classList.remove('hidden');
+}
+
+function closeEnrollDocModal() {
+    const modal = document.getElementById('enroll-doc-modal');
+    const iframe = document.getElementById('enroll-doc-iframe');
+    if (iframe) iframe.src = 'about:blank';
+    if (modal) modal.classList.add('hidden');
+}
+
+async function executeEnrollment() {
+    if (!currentPendingEnrollment) return;
+    const { id: courseId, name: courseName } = currentPendingEnrollment;
+
+    const btn = document.getElementById('btn-confirm-enrollment');
+    if (btn) {
+        btn.innerText = '⏳ Procesando inscripción...';
+        btn.disabled = true;
+    }
+
+    try {
+        const userUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
+        let userData = null;
+        
+        // Primero intentamos buscar en alumnos_registro por el email de la sesión
+        const userDoc = await db.collection('alumnos_registro').where('email', '==', studentSession.email).get();
+        if (!userDoc.empty) {
+            userData = userDoc.docs[0].data();
+        } else if (userUid) {
+            const uidDoc = await db.collection('alumnos_registro').doc(userUid).get();
+            if (uidDoc.exists) userData = uidDoc.data();
+        }
+        
+        if (!userData) {
+            cfpAlert("ERROR", "No se encontró tu perfil central de usuario para realizar la inscripción. Contacta al administrador.");
+            if (btn) {
+                btn.innerText = '🚀 CONFIRMAR INSCRIPCIÓN AL CURSO';
+                btn.disabled = false;
+            }
+            return;
+        }
+        
+        // Guardar en la colección del curso
+        await db.collection('alumnos_' + courseId).doc(userData.dni.toString()).set(userData);
+        
+        // Actualizar studentSession
+        if (!studentSession.cursos) studentSession.cursos = [];
+        studentSession.cursos.push({ id: courseId, nombre: courseName });
+        localStorage.setItem('user_session', JSON.stringify(studentSession));
+        
+        closeCourseEnrollModal();
+        initStudentDashboard(); // Recargar la vista en segundo plano
+
+        // Mostrar modal de éxito con botón para ingresar directamente al curso
+        openEnrollSuccessModal(courseId, courseName);
+        
+    } catch (e) {
+        console.error("Error en inscripción:", e);
+        cfpAlert("ERROR", "Hubo un problema con la inscripción: " + e.message);
+        if (btn) {
+            btn.innerText = '🚀 CONFIRMAR INSCRIPCIÓN AL CURSO';
+            btn.disabled = false;
+        }
+    }
+}
+
+function openEnrollSuccessModal(courseId, courseName) {
+    lastEnrolledCourse = { id: courseId, name: courseName };
+    const modal = document.getElementById('enroll-success-modal');
+    const nameEl = document.getElementById('enroll-success-course-name');
+    const iconEl = document.getElementById('enroll-success-course-icon');
+    if (nameEl) nameEl.innerText = courseName;
+    if (iconEl) iconEl.innerHTML = getCourseIcon(courseName);
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeEnrollSuccessModal() {
+    const modal = document.getElementById('enroll-success-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function enterEnrolledCourse() {
+    if (!lastEnrolledCourse) return;
+    const { id: courseId, name: courseName } = lastEnrolledCourse;
+    closeEnrollSuccessModal();
+    selectCourse(courseId, courseName);
 }
 
 function updateHeaderButton() {
@@ -126,7 +476,11 @@ function selectCourse(courseId, courseName) {
 
     document.getElementById('home-view').classList.add('hidden');
     document.getElementById('course-view').classList.remove('hidden');
-    document.getElementById('course-title').innerText = courseName;
+    
+    const titleEl = document.getElementById('course-title');
+    if (titleEl) {
+        titleEl.innerHTML = `<span style="margin-right:10px; display:inline-flex; align-items:center; vertical-align:middle;">${getCourseIcon(courseName)}</span>${courseName}`;
+    }
 
     const btnConfig = document.querySelector('.btn-config-main');
     if (btnConfig) btnConfig.classList.add('hidden');
@@ -155,6 +509,9 @@ function closeAllModals() {
     closeConfigModal();
     closeForo();
     closeCfpAlert();
+    closeCourseEnrollModal();
+    closeEnrollDocModal();
+    closeEnrollSuccessModal();
 }
 
 async function loadContent() {

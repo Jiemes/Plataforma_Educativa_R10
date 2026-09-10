@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="css/style.css?v=9.18.51">
-    <link rel="stylesheet" href="css/student.css?v=9.18.51">
+    <link rel="stylesheet" href="css/student.css?v=9.18.53">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -55,6 +55,15 @@
                 </div>
                 <div id="home-course-grid" class="course-grid">
                     <div class="loader">Sincronizando información...</div>
+                </div>
+
+                <!-- Vidriera de Cursos -->
+                <div class="section-title" style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 30px;">
+                    <span class="dot" style="background:#00b9e8; box-shadow: 0 0 10px rgba(0, 185, 232, 0.5);"></span>
+                    <h2>Cursos Abiertos a Inscripción</h2>
+                </div>
+                <div id="home-available-courses" class="course-grid" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
+                    <div style="grid-column: 1/-1; text-align:center; padding: 20px; color:#64748b; font-size:0.9rem;">Buscando cursos abiertos...</div>
                 </div>
             </main>
         </div>
@@ -277,8 +286,140 @@
         </div>
     </div>
 
+    <!-- MODAL ONBOARDING / TOUR -->
+    <div id="tour-modal" class="modal hidden" style="z-index: 10000; background: rgba(15, 23, 42, 0.85);">
+        <div class="modal-content" style="max-width: 500px; text-align: center; border-radius: 20px; overflow: hidden; padding: 0;">
+            <div style="background: linear-gradient(135deg, #2563eb, #10b981); padding: 40px 20px; color: white;">
+                <h2 style="font-size: 2rem; margin-bottom: 10px; font-weight: 900;">¡Bienvenido a R10!</h2>
+                <p style="font-size: 1.1rem; opacity: 0.9;">Tu plataforma de Formación Profesional.</p>
+            </div>
+            <div style="padding: 30px 40px; text-align: left;">
+                <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 25px;">
+                    <div style="font-size: 2rem;">📚</div>
+                    <div>
+                        <h4 style="font-weight: 800; color: #1e293b; margin-bottom: 5px;">Mis Cursos</h4>
+                        <p style="color: #64748b; font-size: 0.95rem;">Aquí verás las aulas virtuales de los cursos en los que ya estás inscripto. Ingresa para ver las clases, subir actividades y ver tus notas.</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 25px;">
+                    <div style="font-size: 2rem;">🌟</div>
+                    <div>
+                        <h4 style="font-weight: 800; color: #1e293b; margin-bottom: 5px;">Vidriera de Cursos</h4>
+                        <p style="color: #64748b; font-size: 0.95rem;">En la parte inferior encontrarás los cursos con inscripción abierta. ¡Con un solo clic estarás anotado!</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 25px;">
+                    <div style="font-size: 2rem;">⚙️</div>
+                    <div>
+                        <h4 style="font-weight: 800; color: #1e293b; margin-bottom: 5px;">Configuración</h4>
+                        <p style="color: #64748b; font-size: 0.95rem;">Usa el botón CONFIG arriba a la derecha para cambiar tu contraseña en cualquier momento.</p>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="closeTour()" style="width: 100%; padding: 15px; font-size: 1.1rem; border-radius: 12px; margin-top: 10px;">¡Entendido, comencemos!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DETALLE DE CURSO E INSCRIPCIÓN -->
+    <div id="course-enroll-modal" class="modal hidden" style="z-index: 2500;">
+        <div class="modal-content enroll-modal-content">
+            <div class="enroll-modal-header">
+                <div class="enroll-badge-row">
+                    <span class="badge-enroll-available">✨ INSCRIPCIÓN ABIERTA</span>
+                    <span id="enroll-modal-category" class="badge-enroll-category" style="display: none;">Formación Profesional</span>
+                </div>
+                <button class="btn-close-modal-round" onclick="closeCourseEnrollModal()" title="Cerrar">&times;</button>
+            </div>
+            
+            <div class="enroll-modal-body">
+                <h2 id="enroll-modal-title" class="enroll-course-title">Nombre del Curso</h2>
+                <p class="enroll-course-description">
+                    Revisa las palabras iniciales del equipo docente y el programa académico antes de confirmar tu inscripción al curso.
+                </p>
+
+                <div class="enroll-section-title">
+                    <span>📚</span> Materiales Informativos
+                </div>
+
+                <div id="enroll-materials-container" class="enroll-materials-grid">
+                    <!-- Dinámico: Tarjetas de Bienvenida y Programa -->
+                </div>
+
+                <div class="enroll-info-box">
+                    <div class="info-icon">💡</div>
+                    <div class="info-text">
+                        <strong>Acceso Inmediato:</strong> Al inscribirte tendrás acceso directo al aula virtual, clases semanales, muro de consultas y entrega de actividades.
+                    </div>
+                </div>
+            </div>
+
+            <div class="enroll-modal-footer">
+                <button type="button" class="btn-enroll-cancel" onclick="closeCourseEnrollModal()">Volver a la Vidriera</button>
+                <button type="button" id="btn-confirm-enrollment" class="btn-enroll-confirm" onclick="executeEnrollment()">
+                    🚀 CONFIRMAR INSCRIPCIÓN AL CURSO
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL VISOR DE DOCUMENTO PREVIO (Bienvenida / Programa) -->
+    <div id="enroll-doc-modal" class="modal hidden" style="z-index: 3000;">
+        <div class="modal-content enroll-doc-modal-content">
+            <div class="enroll-doc-header">
+                <div class="doc-header-info">
+                    <span class="doc-badge">DOCUMENTO INFORMATIVO</span>
+                    <h3 id="enroll-doc-title">Vista de Documento</h3>
+                </div>
+                <div class="doc-header-actions">
+                    <a id="enroll-doc-external-link" href="#" target="_blank" class="btn-doc-external" title="Abrir en pestaña nueva">
+                        🔗 Abrir en pestaña nueva
+                    </a>
+                    <button class="btn-close-modal-round" onclick="closeEnrollDocModal()" title="Cerrar">✕</button>
+                </div>
+            </div>
+            <div class="enroll-doc-body">
+                <div id="enroll-doc-loader" class="enroll-doc-loader">
+                    <div class="spinner-premium"></div>
+                    <p>Cargando documento...</p>
+                </div>
+                <iframe id="enroll-doc-iframe" src="about:blank" frameborder="0"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CELEBRACIÓN DE ÉXITO CON BOTÓN DE INGRESO DIRECTO -->
+    <div id="enroll-success-modal" class="modal hidden" style="z-index: 3500; background: rgba(15, 23, 42, 0.85);">
+        <div class="modal-content enroll-success-modal-content">
+            <div class="enroll-success-hero">
+                <div class="celebrate-icon-bounce">🎉</div>
+                <h2 style="font-size: 1.8rem; font-weight: 900; margin-bottom: 8px;">¡Inscripción Exitosa!</h2>
+                <p style="font-size: 0.95rem; opacity: 0.95;">Ya eres parte de nuestra comunidad de aprendizaje</p>
+            </div>
+            <div class="enroll-success-body">
+                <div class="success-course-card">
+                    <div id="enroll-success-course-icon" class="course-icon-mini">🎓</div>
+                    <div>
+                        <div style="font-size:0.75rem; font-weight:800; color:#0284c7; text-transform:uppercase;">Curso Asignado</div>
+                        <h3 id="enroll-success-course-name" style="font-size:1.15rem; font-weight:800; color:#0f172a; margin:2px 0 0 0;">-</h3>
+                    </div>
+                </div>
+                <p style="color:#64748b; font-size:0.92rem; line-height:1.5; margin: 15px 0 25px 0;">
+                    Tu vacante ha sido confirmada y tu aula virtual ya está habilitada. Puedes ingresar de inmediato para comenzar a cursar.
+                </p>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <button id="btn-enter-enrolled-now" class="btn-enter-enrolled" onclick="enterEnrolledCourse()">
+                        🚀 INGRESAR AL CURSO AHORA
+                    </button>
+                    <button class="btn-secondary" onclick="closeEnrollSuccessModal()" style="height:44px; border-radius:12px; font-weight:700;">
+                        Volver a Mis Cursos
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/firebase-config.js?v=9.18.50"></script>
-    <script src="js/student.js?v=9.18.50"></script>
+    <script src="js/student.js?v=9.18.53"></script>
 </body>
 
 </html>

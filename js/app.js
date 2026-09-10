@@ -3,7 +3,7 @@ function cfpAlert(title, message) {
     const modal = document.getElementById('cfp-alert');
     if (!modal) return alert(message);
     document.getElementById('alert-title').innerText = title;
-    document.getElementById('alert-message').innerText = message;
+    document.getElementById('alert-message').innerHTML = message;
     modal.classList.add('active');
 }
 
@@ -162,16 +162,33 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
             } catch (e) { }
         }
 
+        // Si no está en ningún curso específico, buscar en la base central de 'alumnos_registro' (Nuevos registros)
+        if (!info_final) {
+            try {
+                const userDoc = await db.collection('alumnos_registro').where('email', '==', email).get();
+                if (!userDoc.empty) {
+                    info_final = userDoc.docs[0].data();
+                } else if (authFirebase.currentUser) {
+                    const uidDoc = await db.collection('alumnos_registro').doc(authFirebase.currentUser.uid).get();
+                    if (uidDoc.exists) {
+                        info_final = uidDoc.data();
+                    }
+                }
+            } catch (e) {
+                console.error("Error buscando en alumnos_registro:", e);
+            }
+        }
+
         if (info_final) {
             localStorage.setItem('user_session', JSON.stringify({
-                nombre: info_final.full_name,
+                nombre: info_final.full_name || (info_final.apellidos + ', ' + info_final.nombres),
                 dni: info_final.dni,
                 email: info_final.email,
                 cursos: cursos_inscrito
             }));
             window.location.href = 'student.html';
         } else {
-            throw new Error("⚠️ Autenticado pero no encontrado en las planillas. Verifique su correo: " + email);
+            throw new Error(`⚠️ Autenticado en el sistema, pero no se encontró su ficha de registro.<br><br><a href="registro.html?email=${encodeURIComponent(email)}" style="display:inline-block; margin-top:8px; padding:8px 16px; background:#0099cc; color:white; border-radius:8px; text-decoration:none; font-weight:700;">COMPLETAR REGISTRO</a>`);
         }
 
     } catch (error) {

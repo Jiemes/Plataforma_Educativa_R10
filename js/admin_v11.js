@@ -482,53 +482,179 @@ async function resetDeliveriesOnly() {
     }
 }
 
-// EXPORTAR A EXCEL
-async function downloadCourseExcel() {
-    if (!currentViewedCourse) return;
+// EXPORTAR PLANILLA COMPLETA DE ALUMNOS (Por Curso con todos los datos)
+async function downloadCourseFullExcel(courseId, courseName) {
+    if (!courseId) return;
 
     try {
-        const configDoc = await db.collection('config_cursos').doc(currentViewedCourse).get();
-        const materiales = configDoc.exists ? (configDoc.data().materiales || {}) : {};
-        const weeksCount = Object.keys(materiales).filter(k => k.startsWith('sem_')).length;
+        cfpAlert("EXPORTANDO", "⏳ Recopilando datos completos de los alumnos inscriptos...");
 
-        const snapEnt = await db.collection('entregas').where('curso', '==', currentViewedCourse).get();
-        const entregas = snapEnt.docs.map(doc => doc.data());
+        // 1. Obtener alumnos de la colección del curso
+        const snap = await db.collection(`alumnos_${courseId}`).get();
+        if (snap.empty) {
+            return cfpAlert("AVISO", `El curso "${courseName || courseId}" no tiene alumnos inscriptos aún.`);
+        }
 
-        const excelData = studentData[currentViewedCourse].map(s => {
+        // 2. Obtener entregas para calcular tareas y promedio si aplica
+        let entregas = [];
+        try {
+            const snapEnt = await db.collection('entregas').where('curso', '==', courseId).get();
+            entregas = snapEnt.docs.map(d => d.data());
+        } catch (e) {
+            console.warn("No se pudieron cargar entregas:", e);
+        }
+
+        // 3. Cantidad de semanas académicas
+        let weeksCount = 0;
+        try {
+            const configDoc = await db.collection('config_cursos').doc(courseId).get();
+            if (configDoc.exists) {
+                const materiales = configDoc.data().materiales || {};
+                weeksCount = Object.keys(materiales).filter(k => k.startsWith('sem_')).length;
+            }
+        } catch (e) { }
+
+        // 4. Mapear cada alumno con todos los campos de registro
+        const excelRows = [];
+        for (const doc of snap.docs) {
+            let s = { id: doc.id, ...doc.data() };
+
+            // Si le faltan campos de registro detallados, intentar buscar en alumnos_registro por DNI o Email
+            if (!s.cuil || !s.calle || !s.nivel_educativo) {
+                try {
+                    let regSnap = null;
+                    if (s.dni) {
+                        regSnap = await db.collection('alumnos_registro').where('dni', '==', String(s.dni).trim()).get();
+                    }
+                    if ((!regSnap || regSnap.empty) && s.email) {
+                        regSnap = await db.collection('alumnos_registro').where('email', '==', String(s.email).trim().toLowerCase()).get();
+                    }
+                    if (regSnap && !regSnap.empty) {
+                        s = { ...regSnap.docs[0].data(), ...s };
+                    }
+                } catch (err) {
+                    console.warn("Fallback búsqueda registro:", err);
+                }
+            }
+
+            // Entregas y promedio
+            const sDni = String(s.dni || s.id || '').trim().toLowerCase();
+            const sEmail = String(s.email || '').trim().toLowerCase();
+            const sNom = String(s.full_name || '').trim().toLowerCase();
+
             const eAlu = entregas.filter(e => {
-                const eDni = String(e.alumno_dni || "").trim().toLowerCase();
-                const sDni = String(s.dni || "").trim().toLowerCase();
-                const sId = String(s.id || "").trim().toLowerCase();
-                const sEmail = String(s.email || "").trim().toLowerCase();
-                const eNom = String(e.alumno_nombre || "").trim().toLowerCase();
-                const sNom = String(s.full_name || "").trim().toLowerCase();
-                return (eDni !== "" && (eDni === sDni || eDni === sId || eDni === sEmail)) || 
-                       (eNom !== "" && (eNom === sNom || eNom.includes(sNom) || sNom.includes(eNom)));
+                const eDni = String(e.alumno_dni || '').trim().toLowerCase();
+                const eEmail = String(e.alumno_email || '').trim().toLowerCase();
+                const eNom = String(e.alumno_nombre || '').trim().toLowerCase();
+                return (eDni !== '' && (eDni === sDni || eDni === sEmail)) ||
+                       (eNom !== '' && (eNom === sNom || eNom.includes(sNom) || sNom.includes(eNom)));
             });
-            const corr = eAlu.filter(e => e.estado === 'Calificado');
-            const prom = corr.length > 0 ? (corr.reduce((a, b) => a + parseFloat(b.nota || 0), 0) / corr.length).toFixed(1) : '---';
 
-            return {
-                "ALUMNO": s.full_name,
-                "DNI": s.dni,
-                "EMAIL": s.email,
-                "TELÉFONO": s.telefono || '---',
-                "EDAD": s.edad,
-                "ENTREGAS": `${corr.length} / ${weeksCount}`,
+            const calif = eAlu.filter(e => e.estado === 'Calificado');
+            const prom = calif.length > 0 ? (calif.reduce((a, b) => a + parseFloat(b.nota || 0), 0) / calif.length).toFixed(1) : '---';
+
+            // Registro ordenado y legible de todos los campos
+            excelRows.push({
+                "CURSO": courseName || courseId,
+                "APELLIDO Y NOMBRE": s.full_name || `${s.apellidos || ''}, ${s.nombres || ''}`.trim(),
+                "DNI": s.dni || s.id || '',
+                "CUIL": s.cuil || '',
+                "FECHA NACIMIENTO": s.nacimiento || '',
+                "EDAD": s.edad || cleanAge(s.edad, s.nacimiento),
+                "SEXO": s.sexo || '',
+                "IDENTIDAD DE GÉNERO": s.identidad || '',
+                "SOBRENOMBRE": s.sobrenombre || '',
+                "LUGAR DE NACIMIENTO": s.lugar_nacimiento || '',
+                "NACIONALIDAD": s.nacionalidad || '',
+
+                // Contacto y Domicilio
+                "EMAIL": s.email || '',
+                "CELULAR": s.celular || s.telefono || '',
+                "TELÉFONO FIJO / ALT": s.telefono || '',
+                "CALLE": s.calle || '',
+                "ALTURA": s.altura || '',
+                "PISO": s.piso || '',
+                "DEPTO": s.depto || '',
+                "TORRE": s.torre || '',
+                "ENTRE CALLES": s.entre_calles || '',
+                "LOCALIDAD": s.localidad || '',
+                "DISTRITO / PARTIDO": s.distrito || '',
+                "PROVINCIA": s.provincia || '',
+                "CÓDIGO POSTAL": s.codigo_postal || '',
+
+                // Nivel Educativo y Situación Laboral
+                "NIVEL EDUCATIVO": s.nivel_educativo || '',
+                "ESTADO EDUCATIVO": s.estado_educativo || '',
+                "¿ESTÁ TRABAJANDO?": s.esta_trabajando || '',
+                "OCUPACIÓN": s.ocupacion || '',
+                "LUGAR DE TRABAJO": s.lugar_trabajo || '',
+                "ANTIGÜEDAD LABORAL": s.trabajo_desde || '',
+                "TIPO CONTRATACIÓN": s.tipo_contratacion || '',
+                "¿BUSCA TRABAJO?": s.busca_trabajo || '',
+                "¿TRABAJÓ ANTERIORMENTE?": s.trabajo_antes || '',
+
+                // Convivencia y Hogar
+                "PERSONAS EN HOGAR": s.cant_personas || '',
+                "ADULTOS": s.cant_adultos || '',
+                "NIÑOS": s.cant_ninos || '',
+                "CANTIDAD HIJOS": s.cant_hijos || '',
+                "OTRAS LENGUAS": s.lenguas || '',
+
+                // Ficha de Salud
+                "ASMA": s.salud_asma ? 'SÍ' : (s.salud_asma === false ? 'NO' : ''),
+                "CELIAQUÍA": s.salud_celiaquia ? 'SÍ' : (s.salud_celiaquia === false ? 'NO' : ''),
+                "CARDÍACO": s.salud_cardiaco ? 'SÍ' : (s.salud_cardiaco === false ? 'NO' : ''),
+                "DIABETES": s.salud_diabetes ? 'SÍ' : (s.salud_diabetes === false ? 'NO' : ''),
+                "PRESIÓN ALTA": s.salud_presion ? 'SÍ' : (s.salud_presion === false ? 'NO' : ''),
+                "CONVULSIONES": s.salud_convulsiones ? 'SÍ' : (s.salud_convulsiones === false ? 'NO' : ''),
+                "ALERGIAS": s.salud_alergias ? 'SÍ' : (s.salud_alergias === false ? 'NO' : ''),
+                "DISCAPACIDAD": s.salud_discapacidad ? 'SÍ' : (s.salud_discapacidad === false ? 'NO' : ''),
+                "OTRAS OBSERVACIONES SALUD": s.otras_salud || '',
+
+                // Registro y Académico
+                "FECHA REGISTRO": s.fecha_registro ? s.fecha_registro.replace('T', ' ').split('.')[0] : '',
+                "ENTREGAS REALIZADAS": weeksCount > 0 ? `${calif.length} / ${weeksCount}` : `${calif.length}`,
                 "PROMEDIO": prom
-            };
+            });
+        }
+
+        // Generar libro XLSX
+        const worksheet = XLSX.utils.json_to_sheet(excelRows);
+
+        // Auto-ancho de columnas
+        const colWidths = Object.keys(excelRows[0] || {}).map(key => {
+            const maxLen = Math.max(
+                key.length,
+                ...excelRows.map(r => String(r[key] || '').length)
+            );
+            return { wch: Math.min(Math.max(maxLen + 2, 10), 45) };
         });
+        worksheet['!cols'] = colWidths;
 
-        const worksheet = XLSX.utils.json_to_sheet(excelData);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Alumnos");
+        const sheetTitle = (courseName || courseId).substring(0, 30);
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetTitle);
 
-        const fileName = `${currentViewedCourse.toUpperCase()}_ALUMNOS_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`;
+        const safeFileName = (courseName || courseId).toUpperCase().replace(/[^A-Z0-9_\-]/gi, '_');
+        const dateStr = new Date().toISOString().split('T')[0];
+        const fileName = `ALUMNOS_${safeFileName}_${dateStr}.xlsx`;
+
         XLSX.writeFile(workbook, fileName);
+        closeCfpAlert();
+        cfpAlert("ÉXITO", `✅ Planilla de alumnos descargada correctamente (${excelRows.length} registros).`);
 
     } catch (e) {
-        cfpAlert("ERROR", "Error al exportar: " + e.message);
+        console.error("Error al exportar:", e);
+        cfpAlert("ERROR", "Error al exportar planilla: " + e.message);
     }
+}
+
+// EXPORTAR A EXCEL (DESDE LISTADO DE ALUMNOS)
+async function downloadCourseExcel() {
+    if (!currentViewedCourse) return;
+    const cursoObj = activeCourses.find(c => c.id === currentViewedCourse);
+    const nombre = cursoObj ? cursoObj.nombre : currentViewedCourse;
+    await downloadCourseFullExcel(currentViewedCourse, nombre);
 }
 
 let currentCorrectionData = { dni: '', name: '', docId: '', week: '' };
@@ -1354,13 +1480,24 @@ async function loadCoursesManager() {
         tbody.innerHTML = '';
         snap.forEach(doc => {
             const c = doc.data();
+            const isOpen = c.inscripcion_abierta || false;
+            const safeCourseTitle = String(c.nombre || doc.id).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong style="color:var(--primary-color);">#${doc.id}</strong></td>
                 <td><strong>${c.nombre}</strong></td>
                 <td><small>${c.materia || 'Genérica'}</small></td>
-                <td style="text-align:center;"><span style="background:#10b981; color:white; padding:4px 8px; border-radius:8px; font-size:0.8rem; font-weight:700;">ACTIVO</span></td>
-                <td style="text-align:center; display:flex; justify-content:center; gap:5px;">
+                <td style="text-align:center;">
+                    <button type="button" onclick="toggleEnrollment('${doc.id}', ${isOpen})" style="background:${isOpen ? '#d1fae5' : '#fee2e2'}; color:${isOpen ? '#065f46' : '#991b1b'}; border: 1.5px solid ${isOpen ? '#10b981' : '#f87171'}; padding:6px 14px; border-radius:10px; font-size:0.78rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.2s;" title="Clic para ${isOpen ? 'cerrar' : 'abrir'} la inscripción">
+                        <span>${isOpen ? '🟢 ABIERTO' : '🔴 CERRADO'}</span>
+                        <small style="opacity:0.75; font-size:0.7rem;">(${isOpen ? 'Cerrar' : 'Abrir'})</small>
+                    </button>
+                </td>
+                <td style="text-align:center; display:flex; justify-content:center; gap:6px; flex-wrap:wrap;">
+                    <button class="btn-icon" onclick="downloadCourseFullExcel('${doc.id}', '${safeCourseTitle}')" style="color:#0284c7; background:#e0f2fe; border: 1px solid #bae6fd; border-radius:8px; font-weight:800; padding:6px 12px; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" title="Descargar planilla de cálculo con todos los datos de los alumnos inscriptos">
+                        📊 Descargar Alumnos (.xlsx)
+                    </button>
                     <button class="btn-icon" onclick="editCourse('${doc.id}')" style="color:#10b981; background:#d1fae5; border-radius:8px;">✏️ Editar</button>
                     <button class="btn-icon" onclick="deleteCourse('${doc.id}')" style="color:#ef4444; background:#fee2e2; border-radius:8px;">💥 Borrar</button>
                 </td>
@@ -1368,6 +1505,23 @@ async function loadCoursesManager() {
             tbody.appendChild(tr);
         });
     } catch (e) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">Error: ${e.message}</td></tr>`; }
+}
+
+async function toggleEnrollment(id, currentState) {
+    try {
+        await db.collection('cursos').doc(id).update({
+            inscripcion_abierta: !currentState
+        });
+        
+        // Refrescar tabla en Gestión de Cursos
+        loadCoursesManager();
+
+        cfpAlert("ESTADO ACTUALIZADO", !currentState 
+            ? "🔓 La inscripción para este curso ahora está <strong>ABIERTA</strong>. Los alumnos podrán verlo en la vidriera de inicio y anotarse." 
+            : "🔒 La inscripción para este curso ahora está <strong>CERRADA</strong>. Ya no aparecerá en la vidriera de inscripción.");
+    } catch (error) {
+        cfpAlert("ERROR", "No se pudo cambiar el estado de inscripción: " + error.message);
+    }
 }
 
 async function deleteCourse(id) {
@@ -1554,4 +1708,126 @@ async function saveNewPassword() {
         }
     }
 }
+
+// ====== EXPORTAR INFORME CONCEPTUAL (FASE 3 - NUEVO) ======
+async function generateGeneralReport() {
+    const btn = document.querySelector('button[onclick="generateGeneralReport()"]');
+    const originalText = btn ? btn.innerText : '📥 DESCARGAR INFORME GENERAL';
+    if (btn) { btn.innerText = "⏳ Generando informe..."; btn.disabled = true; }
+
+    try {
+        if (!activeCourses || activeCourses.length === 0) {
+            throw new Error("No hay cursos activos cargados.");
+        }
+
+        let htmlContent = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+                <meta charset='utf-8'>
+                <title>Informe de Trayectoria R10</title>
+                <style>
+                    body { font-family: 'Arial', sans-serif; }
+                    h1 { color: #1e293b; text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
+                    h2 { color: #2563eb; margin-top: 30px; }
+                    .stats-box { background: #f1f5f9; padding: 15px; border-left: 5px solid #10b981; margin-bottom: 20px; }
+                    ul { margin-top: 5px; }
+                    li { margin-bottom: 5px; }
+                </style>
+            </head>
+            <body>
+                <h1>Informe Conceptual de Trayectoria Educativa</h1>
+                <p><strong>Fecha de Generación:</strong> ${new Date().toLocaleDateString()}</p>
+                <br>
+        `;
+
+        for (const curso of activeCourses) {
+            const alumnos = studentData[curso.id] || [];
+            
+            // 1. Establecer cantidad de actividades requeridas a 10 (fijo)
+            let requiredTasks = 10; 
+
+            // 2. Calcular estadísticas
+            let totalAlumnos = alumnos.length;
+            let aprobados = 0;
+            let enProceso = 0;
+            let enRiesgo = 0;
+
+            alumnos.forEach(alu => {
+                const entregasHechas = (alu.entregas && Array.isArray(alu.entregas)) ? alu.entregas.length : 0;
+                if (entregasHechas >= requiredTasks) {
+                    aprobados++;
+                } else if (entregasHechas > 5) {
+                    enProceso++;
+                } else {
+                    enRiesgo++;
+                }
+            });
+
+            // 3. Conclusiones del Muro (Foro)
+            let foroConclusiones = "No hay actividad reciente en el muro para analizar.";
+            try {
+                const foroSnap = await db.collection('foro_mensajes')
+                                         .where('curso_id', '==', curso.id)
+                                         .orderBy('fecha', 'desc')
+                                         .limit(20)
+                                         .get();
+                
+                if (!foroSnap.empty) {
+                    const mensajes = foroSnap.docs.map(d => d.data().mensaje || "");
+                    const fullText = mensajes.join(" ").toLowerCase();
+                    const words = fullText.split(/\W+/).filter(w => w.length > 4); // Palabras de más de 4 letras
+                    
+                    // Contar frecuencias
+                    const freq = {};
+                    words.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+                    
+                    // Ordenar por frecuencia
+                    const sortedWords = Object.keys(freq).sort((a,b) => freq[b] - freq[a]).slice(0, 5);
+                    
+                    foroConclusiones = `Se analizaron ${foroSnap.docs.length} mensajes recientes. 
+                    Los conceptos más consultados o mencionados por los alumnos fueron: <strong>${sortedWords.join(", ")}</strong>. 
+                    Se recomienda a los docentes reforzar estos temas en las próximas clases o realizar un apunte aclaratorio en el muro.`;
+                }
+            } catch(e) { console.warn("No se pudo leer foro", e); }
+
+            // Agregar al HTML
+            htmlContent += `
+                <h2>Curso: ${curso.nombre}</h2>
+                <div class="stats-box">
+                    <p><strong>Total de Alumnos Inscriptos:</strong> ${totalAlumnos}</p>
+                    <p><strong>Actividades Evaluables Totales del Curso:</strong> ${requiredTasks}</p>
+                    <ul>
+                        <li><strong>Alumnos con Curso Aprobado</strong> (Completaron ${requiredTasks} o más actividades): <strong>${aprobados}</strong></li>
+                        <li><strong>Alumnos en Proceso</strong> (Tienen más de 5 actividades pero no completaron): <strong>${enProceso}</strong></li>
+                        <li><strong>Alumnos en Riesgo</strong> (Tienen 5 o menos actividades entregadas): <strong>${enRiesgo}</strong></li>
+                    </ul>
+                </div>
+                <h3>Conclusiones del Muro (Consultas de Alumnos)</h3>
+                <p>${foroConclusiones}</p>
+                <hr style="border: 1px solid #cbd5e1; margin-top: 30px;">
+            `;
+        }
+
+        htmlContent += `</body></html>`;
+
+        // Generar descarga
+        const blob = new Blob(['\ufeff', htmlContent], {
+            type: 'application/msword'
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const dateStr = new Date().toISOString().split('T')[0];
+        link.download = `Informe_Trayectoria_R10_${dateStr}.doc`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (e) {
+        cfpAlert("ERROR", "Error al generar el informe: " + e.message);
+    } finally {
+        if (btn) { btn.innerText = originalText; btn.disabled = false; }
+    }
+}
+
 

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro - Plataforma R10</title>
+    <link rel="icon" type="image/png" href="assets/Logo_R10_GE.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/registro.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+</head>
+<body>
+    <div class="registro-container">
+        <div class="registro-card">
+            <div class="registro-header">
+                <img src="assets/Logo_R10_GE.png" alt="Plataforma_R10 Logo" class="main-logo">
+                <h2>Crea tu cuenta de alumno</h2>
+                <p>Completa el formulario institucional para registrarte</p>
+            </div>
+
+            <!-- Indicador de pasos -->
+            <div class="steps-indicator">
+                <div class="step active" id="step-ind-1">1</div>
+                <div class="step" id="step-ind-2">2</div>
+                <div class="step" id="step-ind-3">3</div>
+                <div class="step" id="step-ind-4">4</div>
+                <div class="step" id="step-ind-5">5</div>
+            </div>
+
+            <form id="registro-form">
+                
+                <!-- PASO 1: Datos Personales -->
+                <div class="step-content active" id="step-1">
+                    <h3>Paso 1: Datos Personales</h3>
+                    <div class="form-grid">
+                        <div class="form-group"><label>Nombres *</label><input type="text" id="reg_nombres" required></div>
+                        <div class="form-group"><label>Apellidos *</label><input type="text" id="reg_apellidos" required></div>
+                        <div class="form-group"><label>Documento (DNI) *</label><input type="number" id="reg_dni" required></div>
+                        <div class="form-group"><label>CUIL *</label><input type="text" id="reg_cuil" required></div>
+                        <div class="form-group"><label>Fecha de Nacimiento *</label><input type="date" id="reg_nacimiento" required></div>
+                        <div class="form-group"><label>Lugar de Nacimiento</label><input type="text" id="reg_lugar_nac"></div>
+                        <div class="form-group"><label>Nacionalidad</label><input type="text" id="reg_nacionalidad"></div>
+                        <div class="form-group">
+                            <label>Sexo biológico</label>
+                            <select id="reg_sexo">
+                                <option value="">Seleccionar...</option>
+                                <option value="Masculino">Masculino</option>
+                                <option value="Femenino">Femenino</option>
+                                <option value="X">X (No binario)</option>
+                            </select>
+                        </div>
+                        <div class="form-group"><label>Identidad de género</label><input type="text" id="reg_identidad"></div>
+                        <div class="form-group"><label>Sobrenombre (Opcional)</label><input type="text" id="reg_sobrenombre"></div>
+                    </div>
+                </div>
+
+                <!-- PASO 2: Contacto y Domicilio -->
+                <div class="step-content" id="step-2">
+                    <h3>Paso 2: Contacto y Domicilio</h3>
+                    <div class="form-grid">
+                        <div class="form-group"><label>Email * (Será tu usuario)</label><input type="email" id="reg_email" required></div>
+                        <div class="form-group"><label>Celular *</label><input type="text" id="reg_celular" required></div>
+                        <div class="form-group"><label>Teléfono Fijo (Opcional)</label><input type="text" id="reg_telefono"></div>
+                        
+                        <div class="form-group full-width" style="margin-top:15px;"><label>Domicilio</label></div>
+                        <div class="form-group"><label>Calle *</label><input type="text" id="reg_calle" required></div>
+                        <div class="form-group"><label>Altura *</label><input type="text" id="reg_altura" required></div>
+                        <div class="form-group"><label>Piso</label><input type="text" id="reg_piso"></div>
+                        <div class="form-group"><label>Departamento</label><input type="text" id="reg_depto"></div>
+                        <div class="form-group"><label>Torre</label><input type="text" id="reg_torre"></div>
+                        <div class="form-group"><label>Entre calles</label><input type="text" id="reg_entrecalles"></div>
+                        <div class="form-group"><label>Localidad *</label><input type="text" id="reg_localidad" required></div>
+                        <div class="form-group"><label>Distrito</label><input type="text" id="reg_distrito"></div>
+                        <div class="form-group"><label>Provincia *</label><input type="text" id="reg_provincia" required></div>
+                        <div class="form-group"><label>Código Postal</label><input type="text" id="reg_cp"></div>
+                    </div>
+                </div>
+
+                <!-- PASO 3: Hogar y Salud -->
+                <div class="step-content" id="step-3">
+                    <h3>Paso 3: Hogar y Salud</h3>
+                    <div class="form-grid">
+                        <!-- Hogar -->
+                        <div class="form-group"><label>Cant. personas hogar</label><input type="number" id="reg_cant_per"></div>
+                        <div class="form-group"><label>Cant. adultos hogar</label><input type="number" id="reg_cant_adu"></div>
+                        <div class="form-group"><label>Cant. niños hogar</label><input type="number" id="reg_cant_nin"></div>
+                        <div class="form-group"><label>Cant. hijos</label><input type="number" id="reg_cant_hij"></div>
+                        <div class="form-group"><label>Lengua Indígena / Extranjera</label><input type="text" id="reg_lenguas" placeholder="Especifique si aplica"></div>
+                        
+                        <!-- Salud -->
+                        <div class="form-group full-width" style="margin-top:15px;"><label>Condiciones de Salud (Marque si corresponde)</label></div>
+                        <div class="checkbox-grid full-width">
+                            <label><input type="checkbox" id="salud_asma"> Asma/Bronquitis</label>
+                            <label><input type="checkbox" id="salud_celiaquia"> Celíaquía</label>
+                            <label><input type="checkbox" id="salud_cardiaco"> Prob. Cardíacos</label>
+                            <label><input type="checkbox" id="salud_diabetes"> Diabetes</label>
+                            <label><input type="checkbox" id="salud_presion"> Presión Arterial</label>
+                            <label><input type="checkbox" id="salud_convulsiones"> Convulsiones</label>
+                            <label><input type="checkbox" id="salud_alergias"> Alergias</label>
+                            <label><input type="checkbox" id="salud_discapacidad"> Discapacidad</label>
+                        </div>
+                        
+                        <div class="form-group full-width"><label>Otras condiciones médicas (Internado, Medicación, Operado)</label><input type="text" id="reg_otras_salud"></div>
+                    </div>
+                </div>
+
+                <!-- PASO 4: Educación y Trabajo -->
+                <div class="step-content" id="step-4">
+                    <h3>Paso 4: Educación y Trabajo</h3>
+                    
+                    <div class="form-group full-width"><label>Educación</label></div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Nivel Educativo *</label>
+                            <select id="reg_nivel_edu" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="Ninguno">Ninguno</option>
+                                <option value="Primario">Primario</option>
+                                <option value="Secundario">Secundario</option>
+                                <option value="Terciario">Terciario</option>
+                                <option value="Universitario">Universitario</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <select id="reg_estado_edu">
+                                <option value="Completo">Completo</option>
+                                <option value="Incompleto">Incompleto</option>
+                                <option value="Cursando">Cursando</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group full-width" style="margin-top:15px;"><label>Situación Laboral</label></div>
+                    
+                    <div class="form-group full-width">
+                        <label>¿Está trabajando actualmente? *</label>
+                        <select id="reg_trabajando" required onchange="toggleTrabajoFields()">
+                            <option value="">Seleccione...</option>
+                            <option value="SI">Sí</option>
+                            <option value="NO">No</option>
+                        </select>
+                    </div>
+
+                    <!-- Campos condicionales de trabajo -->
+                    <div class="form-grid" id="campos_trabajo" style="display:none;">
+                        <div class="form-group"><label>Ocupación</label><input type="text" id="reg_ocupacion"></div>
+                        <div class="form-group"><label>Lugar de Trabajo</label><input type="text" id="reg_lugar_trabajo"></div>
+                        <div class="form-group"><label>Desde (Año)</label><input type="text" id="reg_trabajo_desde"></div>
+                        <div class="form-group"><label>Tipo de Contratación</label><input type="text" id="reg_contratacion"></div>
+                    </div>
+
+                    <div class="form-grid" id="campos_no_trabajo" style="display:none;">
+                        <div class="form-group">
+                            <label>¿Busca Trabajo?</label>
+                            <select id="reg_busca_trabajo">
+                                <option value="NO">No</option>
+                                <option value="SI">Sí</option>
+                            </select>
+                        </div>
+                        <div class="form-group"><label>¿Trabajó alguna vez?</label><input type="text" id="reg_trabajo_antes" placeholder="Sí/No y de qué"></div>
+                    </div>
+
+                </div>
+
+                <!-- PASO 5: Creación de Cuenta -->
+                <div class="step-content" id="step-5">
+                    <h3>Paso 5: Contraseña y Finalizar</h3>
+                    <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 20px;">Crea una contraseña segura para ingresar a la plataforma. Tu correo (<span id="preview_email" style="font-weight: bold; color: #0f172a;">-</span>) será tu usuario.</p>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Contraseña *</label>
+                            <input type="password" id="reg_pass1" minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label>Repetir Contraseña *</label>
+                            <input type="password" id="reg_pass2" minlength="6">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="registro-actions">
+                    <button type="button" class="btn-secondary" id="btn-prev" onclick="prevStep()" style="display:none;">Anterior</button>
+                    <button type="button" class="btn-primary" id="btn-next" onclick="nextStep()">Siguiente</button>
+                    <button type="submit" class="btn-success" id="btn-submit" style="display:none;">Finalizar Registro</button>
+                </div>
+            </form>
+            <div style="text-align:center; margin-top:20px;">
+                <a href="index.html" style="color:var(--primary-color); font-size:0.85rem; font-weight:700; text-decoration:none;">Volver al inicio de sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de error -->
+    <div id="cfp-alert" class="alert-modal-overlay">
+        <div class="alert-modal-content">
+            <img src="assets/Logo_R10_GE.png" alt="Logo" class="alert-logo">
+            <div id="alert-title" class="alert-title">ATENCIÓN</div>
+            <div id="alert-message" class="alert-message">Mensaje del sistema</div>
+            <button class="btn-alert-confirm" onclick="document.getElementById('cfp-alert').classList.remove('active')">ENTENDIDO</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/registro.js"></script>
+</body>
+</html>

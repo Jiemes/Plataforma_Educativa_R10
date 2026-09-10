@@ -182,8 +182,7 @@
                 <h2>Administración Plataforma_R10</h2>
                 <div class="header-right">
                     <button class="btn-secondary" onclick="loadStudentsFromFirebase()"
-                        style="padding:8px 15px; border-radius:12px; margin-right:15px; font-weight:700;">🔄 ACTUALIZAR
-                        DATOS</button>
+                        style="padding:8px 15px; border-radius:12px; margin-right:15px; font-weight:700;">🔄 ACTUALIZAR DATOS</button>
                     <div class="notifications">
                         <span id="notif-bell" class="bell-icon">🔔</span>
                         <span id="notif-count" class="notif-badge hidden">0</span>
@@ -198,7 +197,10 @@
                 </div>
 
                 <div class="dashboard-charts card" style="margin-top:25px;">
-                    <h3 id="dashboard-view-title">Análisis Global de Matrícula</h3>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h3 id="dashboard-view-title" style="margin:0;">Análisis Global de Matrícula</h3>
+                        <button class="btn-primary" onclick="generateGeneralReport()" style="padding:8px 15px; border-radius:12px; font-weight:700; background:#10b981; border-color:#10b981;">📥 DESCARGAR INFORME GENERAL</button>
+                    </div>
                     <div class="charts-grid">
                         <div class="chart-container">
                             <h4>Situación Laboral</h4><canvas id="chart-trabajo"></canvas>
@@ -388,7 +390,10 @@
             <section id="gestion-cursos-section" class="section hidden">
                 <div class="card">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <h3 style="font-weight:900; font-size:1.6rem;">🏫 Gestión de Cursos</h3>
+                        <div>
+                            <h3 style="font-weight:900; font-size:1.6rem; margin-bottom:4px;">🏫 Gestión de Cursos</h3>
+                            <p style="color:#64748b; font-size:0.9rem; margin:0;">Apertura de inscripciones, edición y descarga de planillas completas de alumnos.</p>
+                        </div>
                         <button class="btn-primary" onclick="openCreateCourseModal()">+ Crear Nuevo Curso</button>
                     </div>
                     <div class="table-container">
@@ -398,8 +403,8 @@
                                     <th>Slug / ID</th>
                                     <th>Nombre del Curso</th>
                                     <th>Docente</th>
-                                    <th>Estado</th>
-                                    <th>Acciones</th>
+                                    <th style="text-align:center;">Estado Inscripción</th>
+                                    <th style="text-align:center;">Planilla / Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="courses-manager-body"></tbody>
@@ -536,7 +541,7 @@
     </div>
 
     <script src="js/firebase-config.js?v=9.18.50"></script>
-    <script src="js/admin_v11.js?v=9.18.50"></script>
+    <script src="js/admin_v11.js?v=9.18.53"></script>
 </body>
 
 </html>
