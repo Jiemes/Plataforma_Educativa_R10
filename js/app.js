@@ -165,25 +165,64 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
         // Si no está en ningún curso específico, buscar en la base central de 'alumnos_registro' (Nuevos registros)
         if (!info_final) {
             try {
-                const userDoc = await db.collection('alumnos_registro').where('email', '==', email).get();
-                if (!userDoc.empty) {
-                    info_final = userDoc.docs[0].data();
-                } else if (authFirebase.currentUser) {
+                // 1. Buscar por email en minúsculas
+                let userDoc = await db.collection('alumnos_registro').where('email', '==', email).get();
+                // 2. Buscar por email tal como fue escrito o en mayúsculas
+                if (userDoc.empty && rawEmailTyped && rawEmailTyped !== email) {
+                    userDoc = await db.collection('alumnos_registro').where('email', '==', rawEmailTyped).get();
+                }
+                if (userDoc.empty) {
+                    userDoc = await db.collection('alumnos_registro').where('email', '==', email.toUpperCase()).get();
+                }
+                // 3. Buscar por DNI
+                if (userDoc.empty && cleanDni.length >= 7) {
+                    userDoc = await db.collection('alumnos_registro').where('dni', '==', cleanDni).get();
+                }
+                // 4. Buscar por UID en Firebase Auth
+                if (userDoc.empty && authFirebase.currentUser) {
                     const uidDoc = await db.collection('alumnos_registro').doc(authFirebase.currentUser.uid).get();
                     if (uidDoc.exists) {
                         info_final = uidDoc.data();
                     }
+                }
+
+                if (!info_final && !userDoc.empty) {
+                    info_final = userDoc.docs[0].data();
                 }
             } catch (e) {
                 console.error("Error buscando en alumnos_registro:", e);
             }
         }
 
+        // Si autenticó con éxito en Firebase Auth pero no tenía ficha previa, crearle ficha automática para nunca bloquear el acceso
+        if (!info_final && authFirebase.currentUser) {
+            const fallbackName = (authFirebase.currentUser.displayName || email.split('@')[0]).toUpperCase();
+            info_final = {
+                full_name: fallbackName,
+                nombres: fallbackName,
+                apellidos: '',
+                dni: cleanDni && cleanDni.length >= 7 ? cleanDni : '',
+                email: email,
+                rol: 'alumno'
+            };
+            try {
+                await db.collection('alumnos_registro').doc(authFirebase.currentUser.uid).set(info_final, { merge: true });
+            } catch (e) {
+                console.warn("Aviso guardando ficha automática:", e);
+            }
+        }
+
         if (info_final) {
+            const studentName = info_final.full_name || 
+                (info_final.apellidos && info_final.nombres ? `${info_final.apellidos}, ${info_final.nombres}` : '') ||
+                info_final.nombres || 
+                info_final.nombre || 
+                email.split('@')[0].toUpperCase();
+
             localStorage.setItem('user_session', JSON.stringify({
-                nombre: info_final.full_name || (info_final.apellidos + ', ' + info_final.nombres),
-                dni: info_final.dni,
-                email: info_final.email,
+                nombre: studentName,
+                dni: info_final.dni || cleanDni || '',
+                email: info_final.email || email,
                 cursos: cursos_inscrito
             }));
             window.location.href = 'student.html';

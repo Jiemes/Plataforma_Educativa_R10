@@ -720,12 +720,12 @@ function closeViewer() {
 
 async function submitTask(semana) {
     const linkInput = document.getElementById(`link-${semana}`);
-    const rawUrl = linkInput.value.trim();
+    const rawUrl = linkInput ? linkInput.value.trim() : '';
 
     if (!rawUrl) return cfpAlert("ATENCIÓN", "Por favor, pega el link de tu actividad.");
     if (!rawUrl.toLowerCase().includes('google.com')) return cfpAlert("ERROR", "El link debe pertenecer a Google. Por favor, verifica el enlace.");
 
-    // VALIDACIÓN 1: Evitar carpetas
+    // VALIDACIÓN: Evitar carpetas
     if (rawUrl.includes('/folders/') || rawUrl.includes('folderview') || rawUrl.includes('/u/0/f')) {
         return cfpAlert(
             "❌ ERROR: HAS PEGADO UNA CARPETA", 
@@ -733,38 +733,67 @@ async function submitTask(semana) {
         );
     }
 
+    // BLOQUEO INMEDIATO DEL BOTÓN: Evita envíos múltiples si el alumno hace varios clics
+    const btn = document.getElementById(`btn-submit-${semana}`);
+    if (btn && btn.disabled) return;
+
+    const originalBtnText = btn ? btn.innerText : 'ENVIAR ACTIVIDAD';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = '⏳ Enviando actividad...';
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'not-allowed';
+    }
+
     try {
+        const studentDni = String(studentSession.dni || '').trim();
+        // ID único determinístico por curso, semana y alumno: garantiza una sola versión en la base de datos
+        const docId = `${currentCourseId}_sem_${semana}_${studentDni}`.replace(/[^a-zA-Z0-9_-]/g, '_');
 
-        const snapshot = await db.collection('entregas')
-            .where('alumno_dni', '==', studentSession.dni)
-            .where('curso', '==', currentCourseId)
-            .where('semana', '==', semana)
-            .get();
+        const taskData = {
+            alumno_dni: studentDni,
+            alumno_nombre: studentSession.nombre,
+            curso: currentCourseId,
+            semana: semana,
+            archivo_url: rawUrl,
+            fecha_entrega: new Date().toISOString(),
+            estado: 'Pendiente',
+            platformId: window.PLATFORM_ID || 'R10'
+        };
 
-        if (!snapshot.empty) {
-            const docId = snapshot.docs[0].id;
-            await db.collection('entregas').doc(docId).update({
-                archivo_url: rawUrl,
-                fecha_entrega: new Date().toISOString(),
-                estado: 'Pendiente'
-            });
-        } else {
-            await db.collection('entregas').add({
-                alumno_dni: studentSession.dni,
-                alumno_nombre: studentSession.nombre,
-                curso: currentCourseId,
-                semana: semana,
-                archivo_url: rawUrl,
-                fecha_entrega: new Date().toISOString(),
-                estado: 'Pendiente',
-                platformId: PLATFORM_ID
-            });
+        // 1. Guardar en el documento único (sobrescribe cualquier versión previa)
+        await db.collection('entregas').doc(docId).set(taskData, { merge: true });
+
+        // 2. Limpiar posibles duplicados antiguos que se hayan creado con IDs aleatorios
+        try {
+            const oldDuplicatesSnap = await db.collection('entregas')
+                .where('alumno_dni', '==', studentDni)
+                .where('curso', '==', currentCourseId)
+                .where('semana', '==', semana)
+                .get();
+
+            if (!oldDuplicatesSnap.empty) {
+                for (const d of oldDuplicatesSnap.docs) {
+                    if (d.id !== docId) {
+                        await d.ref.delete();
+                    }
+                }
+            }
+        } catch (cleanErr) {
+            console.warn("Aviso limpiando duplicados anteriores:", cleanErr);
         }
 
         cfpAlert("ÉXITO", "🚀 ¡Actividad Enviada con éxito!");
-        loadContent();
+        await loadContent(); // Recargar para habilitar el botón como 'ACTUALIZAR ACTIVIDAD'
     } catch (error) {
+        console.error("Error al enviar actividad:", error);
         cfpAlert("ERROR", "Error al enviar: " + error.message);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = originalBtnText;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        }
     }
 }
 

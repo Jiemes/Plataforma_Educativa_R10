@@ -316,8 +316,17 @@ async function showTable(course) {
                 return (eDni !== "" && (eDni === sDni || eDni === sId || eDni === sEmail)) || 
                        (eNom !== "" && (eNom === sNom || eNom.includes(sNom) || sNom.includes(eNom)));
             });
-            const corr = eAlu.filter(e => e.estado === 'Calificado');
-            const pend = eAlu.filter(e => e.estado === 'Pendiente');
+
+            // Deduplicar entregas por semana: solo considerar la última versión de cada actividad
+            const uniqueWeeksMap = new Map();
+            eAlu.forEach(e => {
+                if (!uniqueWeeksMap.has(e.semana) || new Date(e.fecha_entrega || 0) > new Date(uniqueWeeksMap.get(e.semana).fecha_entrega || 0)) {
+                    uniqueWeeksMap.set(e.semana, e);
+                }
+            });
+            const uniqueEAlu = Array.from(uniqueWeeksMap.values());
+            const corr = uniqueEAlu.filter(e => e.estado === 'Calificado');
+            const pend = uniqueEAlu.filter(e => e.estado === 'Pendiente');
             const prom = corr.length > 0 ? (corr.reduce((a, b) => a + parseFloat(b.nota || 0), 0) / corr.length).toFixed(1) : '-';
 
             const tr = document.createElement('tr');
@@ -403,12 +412,14 @@ async function saveStudent() {
 
         if (editingDni) {
             await db.collection(coll).doc(dni).update(data);
+            try { await db.collection('alumnos_registro').doc(dni).set(data, { merge: true }); } catch (e) { }
             cfpAlert("ÉXITO", "✅ Alumno actualizado.");
         } else {
             const check = await db.collection(coll).doc(dni).get();
             if (check.exists) return cfpAlert("ERROR", "El alumno con ese DNI ya existe.");
 
             await db.collection(coll).doc(dni).set(data);
+            try { await db.collection('alumnos_registro').doc(dni).set(data, { merge: true }); } catch (e) { }
             cfpAlert("SISTEMA", "🚀 Alumno agregado con éxito.");
         }
 
@@ -701,7 +712,15 @@ async function openCorrectionView(dni, name) {
             targetDocs = allDocs.filter(d => String(d.data().alumno_dni).trim() === String(dni).trim());
         }
 
-        const docs = targetDocs.sort((a, b) => b.data().semana - a.data().semana);
+        // Deduplicar entregas por semana: solo mostrar la última versión de cada actividad
+        const docsMap = new Map();
+        targetDocs.forEach(d => {
+            const sem = d.data().semana;
+            if (!docsMap.has(sem) || new Date(d.data().fecha_entrega || 0) > new Date(docsMap.get(sem).data().fecha_entrega || 0)) {
+                docsMap.set(sem, d);
+            }
+        });
+        const docs = Array.from(docsMap.values()).sort((a, b) => b.data().semana - a.data().semana);
         listCont.innerHTML = docs.length === 0 ? '<p style="font-size:0.8rem; color:#64748b;">Sin entregas aún.</p>' : '';
 
         docs.forEach(doc => {
