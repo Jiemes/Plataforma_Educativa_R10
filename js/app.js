@@ -197,11 +197,12 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
         // Si autenticó con éxito en Firebase Auth pero no tenía ficha previa, crearle ficha automática para nunca bloquear el acceso
         if (!info_final && authFirebase.currentUser) {
             const fallbackName = (authFirebase.currentUser.displayName || email.split('@')[0]).toUpperCase();
+            const fallbackDni = (cleanDni && cleanDni.length >= 7) ? cleanDni : authFirebase.currentUser.uid.substring(0, 10).toUpperCase();
             info_final = {
                 full_name: fallbackName,
                 nombres: fallbackName,
                 apellidos: '',
-                dni: cleanDni && cleanDni.length >= 7 ? cleanDni : '',
+                dni: fallbackDni,
                 email: email,
                 rol: 'alumno'
             };

@@ -371,32 +371,70 @@ async function executeEnrollment() {
 
     try {
         const userUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
+        const currentEmail = String((studentSession && studentSession.email) || '').trim().toLowerCase();
         let userData = null;
         
-        // Primero intentamos buscar en alumnos_registro por el email de la sesión
-        const userDoc = await db.collection('alumnos_registro').where('email', '==', studentSession.email).get();
-        if (!userDoc.empty) {
-            userData = userDoc.docs[0].data();
-        } else if (userUid) {
+        // 1. Intentamos buscar en alumnos_registro por email (variaciones de casing)
+        if (currentEmail) {
+            let userDoc = await db.collection('alumnos_registro').where('email', '==', currentEmail).get();
+            if (userDoc.empty) {
+                userDoc = await db.collection('alumnos_registro').where('email', '==', currentEmail.toUpperCase()).get();
+            }
+            if (userDoc.empty && studentSession.email) {
+                userDoc = await db.collection('alumnos_registro').where('email', '==', studentSession.email).get();
+            }
+            if (!userDoc.empty) {
+                userData = userDoc.docs[0].data();
+            }
+        }
+        
+        // 2. Si no se encontró por email, buscar por UID de Firebase Auth
+        if (!userData && userUid) {
             const uidDoc = await db.collection('alumnos_registro').doc(userUid).get();
             if (uidDoc.exists) userData = uidDoc.data();
         }
         
+        // 3. Si no existe ficha previa, generarla automáticamente con los datos de sesión para nunca bloquear
         if (!userData) {
-            cfpAlert("ERROR", "No se encontró tu perfil central de usuario para realizar la inscripción. Contacta al administrador.");
-            if (btn) {
-                btn.innerText = '🚀 CONFIRMAR INSCRIPCIÓN AL CURSO';
-                btn.disabled = false;
-            }
-            return;
+            userData = {
+                full_name: (studentSession && studentSession.nombre) || currentEmail.split('@')[0].toUpperCase(),
+                email: currentEmail,
+                dni: String((studentSession && studentSession.dni) || '').trim(),
+                rol: 'alumno'
+            };
         }
         
-        // Guardar en la colección del curso
-        await db.collection('alumnos_' + courseId).doc(userData.dni.toString()).set(userData);
+        // 4. Determinar ID de documento seguro (GARANTIZADO QUE NUNCA SEA VACÍO)
+        let studentDni = String(userData.dni || (studentSession && studentSession.dni) || '').trim();
+        if (!studentDni) {
+            studentDni = userUid || (currentEmail ? currentEmail.replace(/[^a-zA-Z0-9_-]/g, '_') : '') || ('alu_' + Date.now());
+            userData.dni = studentDni;
+            if (studentSession) studentSession.dni = studentDni;
+        }
+
+        if (!userData.full_name) {
+            userData.full_name = (studentSession && studentSession.nombre) || currentEmail.split('@')[0].toUpperCase();
+        }
+        userData.email = currentEmail || userData.email || '';
+
+        // 5. Guardar en la colección del curso (con docId válido garantizado)
+        await db.collection('alumnos_' + courseId).doc(studentDni).set(userData, { merge: true });
+
+        // 6. Guardar o sincronizar en alumnos_registro
+        if (userUid) {
+            try {
+                await db.collection('alumnos_registro').doc(userUid).set(userData, { merge: true });
+            } catch (syncErr) {
+                console.warn("Aviso sincronizando alumnos_registro:", syncErr);
+            }
+        }
         
-        // Actualizar studentSession
+        // 7. Actualizar studentSession
         if (!studentSession.cursos) studentSession.cursos = [];
-        studentSession.cursos.push({ id: courseId, nombre: courseName });
+        const yaInscrito = studentSession.cursos.some(sc => sc.id === courseId);
+        if (!yaInscrito) {
+            studentSession.cursos.push({ id: courseId, nombre: courseName });
+        }
         localStorage.setItem('user_session', JSON.stringify(studentSession));
         
         closeCourseEnrollModal();
