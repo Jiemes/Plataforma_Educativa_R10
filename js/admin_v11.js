@@ -10,6 +10,25 @@ let currentForoId = '';
 let charts = {};
 let notificationsListener = null;
 
+// UTILIDADES GLOBALES PARA ENTREGAS (Deduplicación robusta y normalización)
+function extractDeliveryWeekNumber(semana) {
+    if (semana === null || semana === undefined) return null;
+    const match = String(semana).match(/\d+/);
+    if (!match) return null;
+    return parseInt(match[0], 10);
+}
+
+function parseDeliveryTimestamp(data) {
+    if (!data) return 0;
+    const raw = data.fecha_entrega || data.timestamp || data.fecha;
+    if (!raw) return 0;
+    if (typeof raw.toMillis === 'function') return raw.toMillis();
+    if (typeof raw.toDate === 'function') return raw.toDate().getTime();
+    if (typeof raw === 'object' && raw.seconds) return raw.seconds * 1000;
+    const t = new Date(raw).getTime();
+    return isNaN(t) ? 0 : t;
+}
+
 // CARGA INICIAL
 async function loadStudentsFromFirebase() {
     try {
@@ -320,8 +339,13 @@ async function showTable(course) {
             // Deduplicar entregas por semana: solo considerar la última versión de cada actividad
             const uniqueWeeksMap = new Map();
             eAlu.forEach(e => {
-                if (!uniqueWeeksMap.has(e.semana) || new Date(e.fecha_entrega || 0) > new Date(uniqueWeeksMap.get(e.semana).fecha_entrega || 0)) {
-                    uniqueWeeksMap.set(e.semana, e);
+                const semNum = extractDeliveryWeekNumber(e.semana);
+                if (semNum === null) return;
+                const time = parseDeliveryTimestamp(e);
+                const existing = uniqueWeeksMap.get(semNum);
+                if (!existing || time > existing._time) {
+                    e._time = time;
+                    uniqueWeeksMap.set(semNum, e);
                 }
             });
             const uniqueEAlu = Array.from(uniqueWeeksMap.values());
@@ -561,7 +585,18 @@ async function downloadCourseFullExcel(courseId, courseName) {
                        (eNom !== '' && (eNom === sNom || eNom.includes(sNom) || sNom.includes(eNom)));
             });
 
-            const calif = eAlu.filter(e => e.estado === 'Calificado');
+            const uniqueReportWeeks = new Map();
+            eAlu.forEach(e => {
+                const semNum = extractDeliveryWeekNumber(e.semana);
+                if (semNum === null) return;
+                const time = parseDeliveryTimestamp(e);
+                const existing = uniqueReportWeeks.get(semNum);
+                if (!existing || time > existing._time) {
+                    e._time = time;
+                    uniqueReportWeeks.set(semNum, e);
+                }
+            });
+            const calif = Array.from(uniqueReportWeeks.values()).filter(e => e.estado === 'Calificado');
             const prom = calif.length > 0 ? (calif.reduce((a, b) => a + parseFloat(b.nota || 0), 0) / calif.length).toFixed(1) : '---';
 
             // Registro ordenado y legible de todos los campos
@@ -713,18 +748,45 @@ async function openCorrectionView(dni, name) {
         }
 
         // Deduplicar entregas por semana: solo mostrar la última versión de cada actividad
-        const docsMap = new Map();
+        const weeksMap = new Map();
+        const duplicatesToDelete = [];
+
         targetDocs.forEach(d => {
-            const sem = d.data().semana;
-            if (!docsMap.has(sem) || new Date(d.data().fecha_entrega || 0) > new Date(docsMap.get(sem).data().fecha_entrega || 0)) {
-                docsMap.set(sem, d);
+            const data = d.data();
+            const semNum = extractDeliveryWeekNumber(data.semana);
+            if (semNum === null) return;
+
+            const time = parseDeliveryTimestamp(data);
+            if (!weeksMap.has(semNum)) {
+                weeksMap.set(semNum, { doc: d, time: time });
+            } else {
+                const currentBest = weeksMap.get(semNum);
+                // Si este documento es más reciente, o a igualdad de tiempo tiene ID mayor, reemplaza
+                if (time > currentBest.time || (time === currentBest.time && d.id > currentBest.doc.id)) {
+                    duplicatesToDelete.push(currentBest.doc);
+                    weeksMap.set(semNum, { doc: d, time: time });
+                } else {
+                    duplicatesToDelete.push(d);
+                }
             }
         });
-        const docs = Array.from(docsMap.values()).sort((a, b) => b.data().semana - a.data().semana);
+
+        // Limpiar en Firestore duplicados redundantes en segundo plano
+        if (duplicatesToDelete.length > 0) {
+            duplicatesToDelete.forEach(dupDoc => {
+                dupDoc.ref.delete().catch(err => console.warn("Error borrando entrega duplicada antigua:", err));
+            });
+        }
+
+        const docs = Array.from(weeksMap.entries())
+            .sort((a, b) => b[0] - a[0])
+            .map(entry => entry[1].doc);
+
         listCont.innerHTML = docs.length === 0 ? '<p style="font-size:0.8rem; color:#64748b;">Sin entregas aún.</p>' : '';
 
         docs.forEach(doc => {
             const data = doc.data();
+            const semNum = extractDeliveryWeekNumber(data.semana);
             const btn = document.createElement('button');
             btn.className = 'btn-activity';
 
@@ -735,13 +797,13 @@ async function openCorrectionView(dni, name) {
             }
 
             btn.innerHTML = `
-                <strong style="font-size:0.95rem;">Actividad ${data.semana}</strong>
+                <strong style="font-size:0.95rem;">Actividad ${semNum}</strong>
                 <small style="color: ${data.estado === 'Calificado' ? (parseFloat(data.nota) >= 70 ? '#10b981' : '#ef4444') : '#64748b'}">${statusText}</small>
             `;
             btn.onclick = () => {
                 document.querySelectorAll('.btn-activity').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                visualizeStudentTask(data.archivo_url || data.file_url, data.semana, doc.id, data.nota, data.devolucion);
+                visualizeStudentTask(data.archivo_url || data.file_url, semNum, doc.id, data.nota, data.devolucion);
             };
             listCont.appendChild(btn);
         });
@@ -1201,15 +1263,38 @@ async function loadPendingDeliveries(courseId = currentViewedCourse) {
         
         // FILTRADO DE DUPLICADOS: Si un alumno envió varias veces la misma semana, nos quedamos con la ÚLTIMA (timestamp más reciente)
         const filteredDocsMap = new Map();
+        const pendingDupsToDelete = [];
+
         allDocs.forEach(d => {
-            const key = `${d.alumno_dni}_${d.semana}`;
+            const semNum = extractDeliveryWeekNumber(d.semana);
+            if (semNum === null) return;
+            const dni = String(d.alumno_dni || '').trim().toLowerCase();
+            const key = `${dni}_${semNum}`;
+            const time = parseDeliveryTimestamp(d);
             const existing = filteredDocsMap.get(key);
-            if (!existing || new Date(d.timestamp || 0) > new Date(existing.timestamp || 0)) {
+            if (!existing) {
+                d._time = time;
+                d._semNum = semNum;
                 filteredDocsMap.set(key, d);
+            } else {
+                if (time > existing._time || (time === existing._time && d.id > existing.id)) {
+                    pendingDupsToDelete.push(existing.id);
+                    d._time = time;
+                    d._semNum = semNum;
+                    filteredDocsMap.set(key, d);
+                } else {
+                    pendingDupsToDelete.push(d.id);
+                }
             }
         });
 
-        const docs = Array.from(filteredDocsMap.values()).sort((a, b) => b.semana - a.semana);
+        if (pendingDupsToDelete.length > 0) {
+            pendingDupsToDelete.forEach(id => {
+                db.collection('entregas').doc(id).delete().catch(e => console.warn(e));
+            });
+        }
+
+        const docs = Array.from(filteredDocsMap.values()).sort((a, b) => (b._semNum || 0) - (a._semNum || 0));
         tbody.innerHTML = '';
 
         docs.forEach(data => {

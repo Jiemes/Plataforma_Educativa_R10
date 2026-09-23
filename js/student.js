@@ -567,7 +567,21 @@ async function loadContent() {
             .where('alumno_dni', '==', studentSession.dni)
             .where('curso', '==', currentCourseId)
             .get();
-        const entregas = entregasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // Deduplicar por semana para que el alumno siempre visualice la última versión enviada
+        const entregasMap = new Map();
+        entregasSnap.docs.forEach(doc => {
+            const data = doc.data();
+            const match = String(data.semana || '').match(/\d+/);
+            if (!match) return;
+            const semNum = parseInt(match[0], 10);
+            const rawTime = data.fecha_entrega || data.timestamp || data.fecha;
+            const time = rawTime ? new Date(rawTime).getTime() || 0 : 0;
+            if (!entregasMap.has(semNum) || time >= (entregasMap.get(semNum)._time || 0)) {
+                entregasMap.set(semNum, { id: doc.id, ...data, _time: time, semana: semNum });
+            }
+        });
+        const entregas = Array.from(entregasMap.values());
 
         weeksContainer.innerHTML = '';
         const hoy = new Date();
@@ -785,14 +799,15 @@ async function submitTask(semana) {
 
     try {
         const studentDni = String(studentSession.dni || '').trim();
+        const semInt = parseInt(String(semana).replace(/\D/g, ''), 10);
         // ID único determinístico por curso, semana y alumno: garantiza una sola versión en la base de datos
-        const docId = `${currentCourseId}_sem_${semana}_${studentDni}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const docId = `${currentCourseId}_sem_${semInt}_${studentDni}`.replace(/[^a-zA-Z0-9_-]/g, '_');
 
         const taskData = {
             alumno_dni: studentDni,
             alumno_nombre: studentSession.nombre,
             curso: currentCourseId,
-            semana: semana,
+            semana: semInt,
             archivo_url: rawUrl,
             fecha_entrega: new Date().toISOString(),
             estado: 'Pendiente',
@@ -807,12 +822,14 @@ async function submitTask(semana) {
             const oldDuplicatesSnap = await db.collection('entregas')
                 .where('alumno_dni', '==', studentDni)
                 .where('curso', '==', currentCourseId)
-                .where('semana', '==', semana)
                 .get();
 
             if (!oldDuplicatesSnap.empty) {
                 for (const d of oldDuplicatesSnap.docs) {
-                    if (d.id !== docId) {
+                    if (d.id === docId) continue;
+                    const dData = d.data();
+                    const dSem = parseInt(String(dData.semana || '').replace(/\D/g, ''), 10);
+                    if (dSem === semInt) {
                         await d.ref.delete();
                     }
                 }
