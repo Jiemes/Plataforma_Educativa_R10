@@ -1,3 +1,6 @@
+let currentStep = 1;
+const totalSteps = 5;
+
 // Estado de documentos DNI
 const dniFiles = {
     frente: null,
