@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=9.18.11">
+    <link rel="stylesheet" href="css/style.css?v=9.19.20">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -35,12 +35,12 @@
                     <label for="password">Contraseña</label>
                     <input type="password" id="password" placeholder="Tu número de documento" required>
                 </div>
-                <button type="submit" class="btn-login">Ingresar</button>
+                <button type="submit" class="btn-login" id="btn-login">Ingresar</button>
             </form>
 
             <div style="text-align:center; margin-top:15px; display:flex; flex-direction:column; gap:10px;">
-                <a href="#" onclick="recuperarClave()" style="color:var(--primary-color); font-size:0.85rem; font-weight:700; text-decoration:none;">¿Olvidaste tu contraseña?</a>
-                <a href="registro.html" style="color:#10b981; font-size:0.9rem; font-weight:700; text-decoration:none; padding: 10px; border: 1px solid #10b981; border-radius: 8px; margin-top: 5px;">Crea una cuenta nueva</a>
+                <a href="#" onclick="recuperarClave()" id="link-recuperar" style="color:var(--primary-color); font-size:0.85rem; font-weight:700; text-decoration:none;">¿Olvidaste tu contraseña?</a>
+                <a href="registro.html" id="link-registro" style="color:#10b981; font-size:0.9rem; font-weight:700; text-decoration:none; padding: 10px; border: 1px solid #10b981; border-radius: 8px; margin-top: 5px;">Crea una cuenta nueva</a>
             </div>
 
             <div class="login-footer">
@@ -48,6 +48,16 @@
                 <p>Creado el 5 de mayo de 2026</p>
             </div>
         </div>
+    </div>
+
+    <!-- CARTEL DE AYUDA FLOTANTE AL PASAR EL MOUSE (LOGIN HELP) -->
+    <div id="login-help-card" class="login-help-card" role="tooltip" aria-hidden="true">
+        <div class="login-help-header">
+            <span class="login-help-icon" id="help-card-icon">💡</span>
+            <div class="login-help-title" id="help-card-title">Ayuda del Sistema</div>
+        </div>
+        <ul class="login-help-steps" id="help-card-steps"></ul>
+        <div class="login-help-tip" id="help-card-tip"></div>
     </div>
 
     <!-- ALERT MODAL PERSONALIZADO -->
@@ -60,9 +70,8 @@
         </div>
     </div>
 
-    <script src="js/firebase-config.js?v=9.19.10"></script>
-    <script src="js/app.js?v=9.19.10"></script>
-    <!-- sync-pages-deploy -->
+    <script src="js/firebase-config.js?v=9.19.20"></script>
+    <script src="js/app.js?v=9.19.20"></script>
 </body>
 
 </html>

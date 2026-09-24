@@ -222,3 +222,150 @@ body {
 .btn-alert-confirm:hover {
     background: var(--primary-hover);
 }
+
+/* =========================================================================
+   CARTEL DE AYUDA AL PASAR EL MOUSE (LOGIN HELP TOOLTIP)
+   ========================================================================= */
+.login-help-card {
+    position: fixed;
+    z-index: 9999;
+    width: 350px;
+    max-width: calc(100vw - 32px);
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 22px 24px;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.22), 0 0 0 1.5px rgba(0, 185, 232, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px) scale(0.97);
+    transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.22s;
+    pointer-events: none;
+    text-align: left;
+    color: #1e293b;
+    border: 1px solid rgba(2, 132, 199, 0.15);
+}
+
+.login-help-card.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.login-help-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1.5px solid #f1f5f9;
+}
+
+.login-help-icon {
+    font-size: 1.6rem;
+    line-height: 1;
+    background: #e0f2fe;
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+
+.login-help-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.3;
+}
+
+.login-help-steps {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding: 0;
+}
+
+.login-help-steps li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.84rem;
+    color: #334155;
+    line-height: 1.45;
+}
+
+.login-help-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #0284c7;
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.login-help-steps strong {
+    color: #0f172a;
+}
+
+.login-help-steps code {
+    background: #e2e8f0;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: #0369a1;
+}
+
+.login-help-tip {
+    background: #f0fdf4;
+    border-left: 3.5px solid #10b981;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 0.77rem;
+    color: #166534;
+    line-height: 1.4;
+}
+
+/* Flechas decorativas del cartel flotante */
+.login-help-card::before {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #ffffff;
+    transform: rotate(45deg);
+    border: 1px solid rgba(2, 132, 199, 0.2);
+}
+
+.login-help-card.pos-right::before {
+    left: -8px;
+    top: 36px;
+    border-right: none;
+    border-top: none;
+}
+
+.login-help-card.pos-bottom::before {
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    border-right: none;
+    border-bottom: none;
+}
+
+.login-help-card.pos-top::before {
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    border-left: none;
+    border-top: none;
+}
