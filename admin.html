@@ -7,7 +7,7 @@
     <title>Panel Administrativo | Plataforma Educativa de Formación Profesional</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css?v=9.18.9">
-    <link rel="stylesheet" href="css/admin.css?v=9.18.9">
+    <link rel="stylesheet" href="css/admin.css?v=9.18.10">
     <style>
         .correction-container {
             display: grid;
@@ -228,12 +228,17 @@
             <!-- SECCIÓN: LISTADO DE ALUMNOS (Por Curso) -->
             <section id="table-section" class="section hidden">
                 <div class="card">
-                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <h3 id="current-course-title">Listado de Alumnos</h3>
-                        <div class="table-actions-top" style="display:flex; gap:10px;">
+                        <div class="table-actions-top" style="display:flex; gap:10px; flex-wrap:wrap;">
+                            <button class="btn-primary-sm" onclick="printCourseRoster()"
+                                style="background:#0284c7; border-color:#0284c7; color:white; display:inline-flex; align-items:center; gap:5px;" title="Imprimir planilla oficial de alumnos del curso">
+                                🖨️ Imprimir Planilla
+                            </button>
                             <button class="btn-primary-sm" onclick="downloadCourseExcel()"
-                                style="background:#10b981; border-color:#10b981; color:white;">📥 Descargar
-                                Listado</button>
+                                style="background:#10b981; border-color:#10b981; color:white; display:inline-flex; align-items:center; gap:5px;" title="Descargar planilla completa en formato Excel">
+                                📥 Descargar Listado (.xlsx)
+                            </button>
                             <button class="btn-primary-sm" onclick="openStudentModal()">👤 Agregar Alumno</button>
                             <button class="btn-secondary" onclick="resetDeliveriesOnly()"
                                 style="border:1px solid #cbd5e1;">🔄 Reiniciar Entregas</button>
@@ -246,6 +251,7 @@
                                 <tr>
                                     <th>Apellido y Nombre</th>
                                     <th>DNI</th>
+                                    <th style="text-align:center;">Doc. DNI</th>
                                     <th>Teléfono</th>
                                     <th>Email</th>
                                     <th style="text-align:center">Edad</th>
@@ -530,6 +536,39 @@
         </div>
     </div>
 
+    <!-- MODAL VISUALIZADOR E IMPRESIÓN DE DNI DE ALUMNO -->
+    <div id="student-dni-modal" class="modal hidden">
+        <div class="modal-content" style="max-width:850px; width:92vw; padding:30px; border-radius:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #e2e8f0; padding-bottom:15px; margin-bottom:20px;">
+                <div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:1.5rem;">🪪</span>
+                        <h3 id="dni-modal-student-name" style="margin:0; font-size:1.35rem; color:#0f172a; font-weight:800;">Documento de Identidad (DNI)</h3>
+                    </div>
+                    <p id="dni-modal-student-details" style="color:#64748b; font-size:0.88rem; margin:6px 0 0 0;">Cargando datos del alumno...</p>
+                </div>
+                <button onclick="closeStudentDniModal()" class="btn-icon" style="font-size:1.2rem; cursor:pointer;" title="Cerrar">✖️</button>
+            </div>
+
+            <!-- Contenido dinámico de las imágenes del DNI -->
+            <div id="dni-modal-body">
+                <!-- Se inyecta por JavaScript -->
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:25px; padding-top:18px; border-top:1px solid #e2e8f0; flex-wrap:wrap; gap:10px;">
+                <div id="dni-modal-status-badge" style="font-size:0.85rem; font-weight:700; color:#059669; display:flex; align-items:center; gap:6px;">
+                    <!-- Estado -->
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-secondary" onclick="closeStudentDniModal()" style="border-radius:10px; padding:10px 20px;">Cerrar</button>
+                    <button class="btn-primary" id="btn-print-dni" onclick="printStudentDniDoc()" style="border-radius:10px; padding:10px 24px; background:#0284c7; border-color:#0284c7; display:inline-flex; align-items:center; gap:8px;">
+                        🖨️ IMPRIMIR DNI (FRENTE Y REVERSO)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ALERT MODAL PERSONALIZADO -->
     <div id="cfp-alert" class="alert-modal-overlay">
         <div class="alert-modal-content">
@@ -541,7 +580,7 @@
     </div>
 
     <script src="js/firebase-config.js?v=9.18.50"></script>
-    <script src="js/admin_v11.js?v=9.18.57"></script>
+    <script src="js/admin_v11.js?v=9.18.58"></script>
 </body>
 
 </html>

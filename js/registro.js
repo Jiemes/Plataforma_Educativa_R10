@@ -1,9 +1,18 @@
-let currentStep = 1;
-const totalSteps = 5;
+// Estado de documentos DNI
+const dniFiles = {
+    frente: null,
+    dorso: null
+};
 
-// Inicializa el primer paso
+const dniPreviews = {
+    frente: null,
+    dorso: null
+};
+
+// Inicializa el primer paso y listeners
 document.addEventListener('DOMContentLoaded', () => {
     updateUI();
+    initDniDropzones();
     
     // Si viene email por parámetro de URL, precompletarlo
     try {
@@ -25,6 +34,184 @@ document.addEventListener('DOMContentLoaded', () => {
         if(preview) preview.textContent = e.target.value || '-';
     });
 });
+
+// DISPARAR SELECTOR DE ARCHIVO
+function triggerFileInput(inputId) {
+    const input = document.getElementById(inputId);
+    if (input) input.click();
+}
+
+// GESTIÓN DE ARCHIVOS DNI
+function handleDniFileSelect(e, side) {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+        processDniFile(file, side);
+    }
+}
+
+function processDniFile(file, side) {
+    if (!file) return;
+
+    // Validar tipo de archivo permitido
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf';
+
+    if (!isImage && !isPdf) {
+        showAlert('FORMATO NO VÁLIDO', 'Por favor selecciona una imagen (JPG, PNG, WEBP) o un documento PDF del DNI.');
+        return;
+    }
+
+    // Tamaño máximo: 12MB
+    if (file.size > 12 * 1024 * 1024) {
+        showAlert('ARCHIVO DEMASIADO GRANDE', 'El archivo no debe superar los 12MB. Toma una foto con menor resolución o recorta la imagen.');
+        return;
+    }
+
+    if (isImage) {
+        // Comprimir imagen usando canvas para carga rápida y nítida
+        const reader = new FileReader();
+        reader.onload = (loadEvent) => {
+            const img = new Image();
+            img.onload = () => {
+                // Redimensionar si es muy grande manteniendo proporción
+                const maxDim = 1600;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    } else {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.86);
+                
+                // Convertir dataURL a Blob
+                fetch(compressedDataUrl)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: "image/jpeg" });
+                        dniFiles[side] = compressedFile;
+                        dniPreviews[side] = compressedDataUrl;
+                        displayDniPreview(side, compressedDataUrl, compressedFile.name, formatBytes(compressedFile.size));
+                    });
+            };
+            img.src = loadEvent.target.result;
+        };
+        reader.readAsDataURL(file);
+    } else if (isPdf) {
+        dniFiles[side] = file;
+        // Para PDF usamos un icono/thumbnail informativo
+        const pdfPlaceholder = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='140' viewBox='0 0 200 140'><rect width='200' height='140' fill='%23fee2e2'/><text x='100' y='75' font-size='32' text-anchor='middle' fill='%23ef4444'>📄 PDF</text></svg>";
+        dniPreviews[side] = pdfPlaceholder;
+        displayDniPreview(side, pdfPlaceholder, file.name, formatBytes(file.size));
+    }
+}
+
+function displayDniPreview(side, previewUrl, fileName, fileSizeStr) {
+    const emptyBox = document.getElementById(`empty-${side}`);
+    const filledBox = document.getElementById(`filled-${side}`);
+    const imgEl = document.getElementById(`img-preview-${side}`);
+    const nameEl = document.getElementById(`file-name-${side}`);
+    const sizeEl = document.getElementById(`file-size-${side}`);
+    const statusTag = document.getElementById(`status-tag-${side}`);
+    const cardEl = document.getElementById(`card-dni-${side}`);
+    const errorEl = document.getElementById(`error-${side}`);
+
+    if (imgEl) imgEl.src = previewUrl;
+    if (nameEl) nameEl.textContent = fileName;
+    if (sizeEl) sizeEl.textContent = fileSizeStr;
+
+    if (emptyBox) emptyBox.classList.add('hidden');
+    if (filledBox) filledBox.classList.remove('hidden');
+
+    if (statusTag) {
+        statusTag.textContent = "✅ Listo";
+        statusTag.classList.add('ready');
+    }
+
+    if (cardEl) {
+        cardEl.classList.add('has-file');
+        cardEl.classList.remove('has-error');
+    }
+
+    if (errorEl) errorEl.classList.add('hidden');
+}
+
+function removeDniFile(side) {
+    dniFiles[side] = null;
+    dniPreviews[side] = null;
+
+    const input = document.getElementById(`reg_dni_${side}`);
+    if (input) input.value = '';
+
+    const emptyBox = document.getElementById(`empty-${side}`);
+    const filledBox = document.getElementById(`filled-${side}`);
+    const statusTag = document.getElementById(`status-tag-${side}`);
+    const cardEl = document.getElementById(`card-dni-${side}`);
+
+    if (emptyBox) emptyBox.classList.remove('hidden');
+    if (filledBox) filledBox.classList.add('hidden');
+
+    if (statusTag) {
+        statusTag.textContent = "Pendiente";
+        statusTag.classList.remove('ready');
+    }
+
+    if (cardEl) {
+        cardEl.classList.remove('has-file');
+    }
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+// INICIALIZAR DRAG AND DROP
+function initDniDropzones() {
+    ['frente', 'dorso'].forEach(side => {
+        const dropzone = document.getElementById(`dropzone-${side}`);
+        if (!dropzone) return;
+
+        ['dragenter', 'dragover'].forEach(evtName => {
+            dropzone.addEventListener(evtName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.add('drag-active');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(evtName => {
+            dropzone.addEventListener(evtName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove('drag-active');
+            });
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                processDniFile(files[0], side);
+            }
+        });
+    });
+}
 
 function nextStep() {
     // Basic HTML5 validation before moving to the next step
@@ -111,6 +298,33 @@ function showAlert(title, message) {
 document.getElementById('registro-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    // 1. VALIDACIÓN OBLIGATORIA DE DOCUMENTOS DNI (FRENTE Y REVERSO)
+    let missingDocs = false;
+
+    if (!dniFiles.frente) {
+        missingDocs = true;
+        const cardFrente = document.getElementById('card-dni-frente');
+        const errFrente = document.getElementById('error-frente');
+        if (cardFrente) cardFrente.classList.add('has-error');
+        if (errFrente) errFrente.classList.remove('hidden');
+    }
+
+    if (!dniFiles.dorso) {
+        missingDocs = true;
+        const cardDorso = document.getElementById('card-dni-dorso');
+        const errDorso = document.getElementById('error-dorso');
+        if (cardDorso) cardDorso.classList.add('has-error');
+        if (errDorso) errDorso.classList.remove('hidden');
+    }
+
+    if (missingDocs) {
+        showAlert('DOCUMENTACIÓN INCOMPLETA', 'Es <strong>obligatorio</strong> adjuntar la foto del <strong>Frente</strong> y del <strong>Reverso</strong> de tu Documento Nacional de Identidad (DNI) para poder crear tu usuario y completar tu legajo institucional.');
+        // Hacer scroll suave hacia la sección de DNI
+        document.querySelector('.dni-upload-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+    }
+
+    // 2. VALIDACIÓN DE CONTRASEÑA
     const pass1 = document.getElementById('reg_pass1').value;
     const pass2 = document.getElementById('reg_pass2').value;
 
@@ -125,6 +339,8 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
     }
 
     const email = document.getElementById('reg_email').value.trim().toLowerCase();
+    const dniRaw = document.getElementById('reg_dni').value.trim();
+    const dniClean = dniRaw.replace(/\D/g, '');
     
     // Recopilar todos los datos
     const userData = {
@@ -132,7 +348,7 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
         full_name: document.getElementById('reg_apellidos').value.toUpperCase() + ', ' + document.getElementById('reg_nombres').value.toUpperCase(),
         nombres: document.getElementById('reg_nombres').value.trim(),
         apellidos: document.getElementById('reg_apellidos').value.trim(),
-        dni: document.getElementById('reg_dni').value.trim(),
+        dni: dniClean,
         cuil: document.getElementById('reg_cuil').value.trim(),
         nacimiento: document.getElementById('reg_nacimiento').value,
         lugar_nacimiento: document.getElementById('reg_lugar_nac').value.trim(),
@@ -178,6 +394,12 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
         estado_educativo: document.getElementById('reg_estado_edu').value,
         esta_trabajando: document.getElementById('reg_trabajando').value,
         
+        // Documentos DNI
+        dni_frente_url: '',
+        dni_dorso_url: '',
+        dni_documentos_completos: true,
+        dni_documentos_fecha: new Date().toISOString(),
+
         // Rol
         rol: 'alumno',
         fecha_registro: new Date().toISOString()
@@ -195,7 +417,7 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
 
     const btnSubmit = document.getElementById('btn-submit');
     const originalText = btnSubmit.innerText;
-    btnSubmit.innerText = "Creando cuenta...";
+    btnSubmit.innerText = "⏳ Creando cuenta y validando...";
     btnSubmit.disabled = true;
 
     try {
@@ -206,8 +428,7 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
             uid = userCredential.user.uid;
         } catch (authErr) {
             if (authErr.code === 'auth/email-already-in-use') {
-                // Si el usuario ya fue creado en Auth (por ejemplo en un intento previo que falló al guardar en DB),
-                // nos autenticamos con la contraseña ingresada para obtener su UID y completar el registro
+                // Si el usuario ya fue creado en Auth, nos autenticamos para completar el registro
                 try {
                     const loginCred = await firebase.auth().signInWithEmailAndPassword(email, pass1);
                     uid = loginCred.user.uid;
@@ -219,6 +440,35 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
             }
         }
 
+        // 2. SUBIDA DE DOCUMENTOS DNI A FIREBASE STORAGE (con respaldo en data URL)
+        btnSubmit.innerText = "📤 Subiendo fotos del DNI...";
+        
+        let urlFrente = '';
+        let urlDorso = '';
+
+        if (window.storage) {
+            try {
+                const ts = Date.now();
+                const extFrente = dniFiles.frente.name ? dniFiles.frente.name.split('.').pop() : 'jpg';
+                const extDorso = dniFiles.dorso.name ? dniFiles.dorso.name.split('.').pop() : 'jpg';
+
+                const refFrente = window.storage.ref().child(`documentos_dni/${dniClean}_${uid}/frente_${ts}.${extFrente}`);
+                const refDorso = window.storage.ref().child(`documentos_dni/${dniClean}_${uid}/reverso_${ts}.${extDorso}`);
+
+                const snapFrente = await refFrente.put(dniFiles.frente);
+                urlFrente = await snapFrente.ref.getDownloadURL();
+
+                const snapDorso = await refDorso.put(dniFiles.dorso);
+                urlDorso = await snapDorso.ref.getDownloadURL();
+            } catch (storageError) {
+                console.warn("Storage upload error, usando almacenamiento directo:", storageError);
+            }
+        }
+
+        // Respaldo de seguridad en caso de que Storage falle o no esté activo
+        userData.dni_frente_url = urlFrente || dniPreviews.frente || '';
+        userData.dni_dorso_url = urlDorso || dniPreviews.dorso || '';
+
         // Sanitizar campos undefined antes de enviar a Firestore
         Object.keys(userData).forEach(k => {
             if (userData[k] === undefined || userData[k] === null) {
@@ -226,10 +476,20 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
             }
         });
 
-        // 2. Guardar datos en la colección 'alumnos_registro'
-        await db.collection('alumnos_registro').doc(uid).set(userData);
+        // 3. Guardar datos en la colección 'alumnos_registro' por UID
+        btnSubmit.innerText = "💾 Guardando tu legajo...";
+        await db.collection('alumnos_registro').doc(uid).set(userData, { merge: true });
 
-        showAlert('¡ÉXITO!', 'Tu cuenta ha sido creada exitosamente. Ahora puedes iniciar sesión y anotarte a los cursos disponibles.');
+        // Guardar o indexar también por DNI para que el panel administrativo y los reportes lo encuentren al instante
+        if (dniClean) {
+            try {
+                await db.collection('alumnos_registro').doc(dniClean).set(userData, { merge: true });
+            } catch (dniSyncErr) {
+                console.warn("Aviso indexando por DNI:", dniSyncErr);
+            }
+        }
+
+        showAlert('¡ÉXITO!', 'Tu cuenta ha sido creada exitosamente con la documentación correspondiente. Ahora puedes iniciar sesión y acceder a los cursos.');
         
         setTimeout(() => {
             window.location.href = 'index.html';

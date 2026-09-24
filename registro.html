@@ -7,12 +7,13 @@
     <link rel="icon" type="image/png" href="assets/Logo_R10_GE.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/registro.css">
+    <link rel="stylesheet" href="css/registro.css?v=9.19.0">
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
 </head>
 <body>
     <div class="registro-container">
@@ -168,19 +169,142 @@
 
                 </div>
 
-                <!-- PASO 5: Creación de Cuenta -->
+                <!-- PASO 5: Documentación y Creación de Cuenta -->
                 <div class="step-content" id="step-5">
-                    <h3>Paso 5: Contraseña y Finalizar</h3>
-                    <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 20px;">Crea una contraseña segura para ingresar a la plataforma. Tu correo (<span id="preview_email" style="font-weight: bold; color: #0f172a;">-</span>) será tu usuario.</p>
-                    
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Contraseña *</label>
-                            <input type="password" id="reg_pass1" minlength="6">
+                    <h3>Paso 5: Documentación de Identidad y Contraseña</h3>
+                    <p style="font-size: 0.92rem; color: #475569; margin-bottom: 20px;">
+                        Para validar tu identidad y completar tu legajo de alumno es <strong>obligatorio</strong> adjuntar las fotos de tu DNI (Frente y Reverso). Luego define tu contraseña de acceso.
+                    </p>
+
+                    <!-- SECCIÓN SUBIDA DE DNI -->
+                    <div class="dni-upload-section">
+                        <div class="dni-section-header">
+                            <div class="dni-badge-req">DOCUMENTACIÓN OBLIGATORIA</div>
+                            <h4 style="font-size:1.1rem; color:#0f172a; margin:8px 0 4px 0;">Fotos de tu Documento Nacional de Identidad (DNI)</h4>
+                            <p style="font-size:0.85rem; color:#64748b; margin:0;">Debes subir una foto o escaneo nítido del frente y otro del reverso de tu DNI.</p>
                         </div>
-                        <div class="form-group">
-                            <label>Repetir Contraseña *</label>
-                            <input type="password" id="reg_pass2" minlength="6">
+
+                        <!-- Consejos / Ayudas para el usuario -->
+                        <div class="dni-tips-box">
+                            <span class="dni-tips-icon">💡</span>
+                            <div class="dni-tips-content">
+                                <strong>Recomendaciones para una aprobación inmediata:</strong>
+                                <ul>
+                                    <li>Coloca el documento sobre una superficie plana y bien iluminada.</li>
+                                    <li>Evita reflejos de luces o flash y cuida que tus dedos no tapen textos ni números.</li>
+                                    <li>Asegúrate de que la foto, nombre, número de DNI y fecha de vencimiento se lean nítidos.</li>
+                                    <li>Formatos aceptados: <strong>JPG, PNG, WEBP o PDF</strong> (puedes tomar la foto con tu celular).</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Grid de los 2 Documentos -->
+                        <div class="dni-upload-grid">
+                            <!-- TARJETA 1: FRENTE -->
+                            <div class="dni-card" id="card-dni-frente">
+                                <div class="dni-card-header">
+                                    <span class="dni-card-title">1. Frente del DNI <span class="tag-req">* Obligatorio</span></span>
+                                    <span class="dni-status-tag" id="status-tag-frente">Pendiente</span>
+                                </div>
+                                <div class="dni-dropzone" id="dropzone-frente" onclick="triggerFileInput('reg_dni_frente')">
+                                    <input type="file" id="reg_dni_frente" accept="image/*,application/pdf" style="display:none;" onchange="handleDniFileSelect(event, 'frente')">
+                                    
+                                    <div class="dropzone-empty" id="empty-frente">
+                                        <div class="dni-mockup frente">
+                                            <div class="mockup-flag">🇦🇷</div>
+                                            <div class="mockup-user-photo">👤</div>
+                                            <div class="mockup-details">
+                                                <div class="mockup-line w-long"></div>
+                                                <div class="mockup-line w-med"></div>
+                                                <div class="mockup-line w-short"></div>
+                                            </div>
+                                        </div>
+                                        <div class="dropzone-instruction">
+                                            <span class="camera-icon">📷</span>
+                                            <strong>Clic aquí para subir el FRENTE</strong>
+                                            <small>o arrastra la foto hasta aquí</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="dropzone-filled hidden" id="filled-frente">
+                                        <div class="preview-img-container">
+                                            <img id="img-preview-frente" src="" alt="Frente del DNI" class="preview-thumb">
+                                        </div>
+                                        <div class="file-details">
+                                            <span class="file-name" id="file-name-frente">-</span>
+                                            <span class="file-size" id="file-size-frente">-</span>
+                                            <span class="file-ready">✅ Documento cargado correctamente</span>
+                                        </div>
+                                        <div class="preview-btn-row">
+                                            <button type="button" class="btn-change-doc" onclick="event.stopPropagation(); triggerFileInput('reg_dni_frente')">🔄 Cambiar foto</button>
+                                            <button type="button" class="btn-remove-doc" onclick="event.stopPropagation(); removeDniFile('frente')">🗑️ Quitar</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="dni-card-alert hidden" id="error-frente">⚠️ Debes subir la foto del frente de tu DNI.</div>
+                            </div>
+
+                            <!-- TARJETA 2: REVERSO -->
+                            <div class="dni-card" id="card-dni-dorso">
+                                <div class="dni-card-header">
+                                    <span class="dni-card-title">2. Reverso / Dorso <span class="tag-req">* Obligatorio</span></span>
+                                    <span class="dni-status-tag" id="status-tag-dorso">Pendiente</span>
+                                </div>
+                                <div class="dni-dropzone" id="dropzone-dorso" onclick="triggerFileInput('reg_dni_dorso')">
+                                    <input type="file" id="reg_dni_dorso" accept="image/*,application/pdf" style="display:none;" onchange="handleDniFileSelect(event, 'dorso')">
+                                    
+                                    <div class="dropzone-empty" id="empty-dorso">
+                                        <div class="dni-mockup dorso">
+                                            <div class="mockup-fingerprint">🖐️</div>
+                                            <div class="mockup-barcode">|||||||||||||||||||||</div>
+                                            <div class="mockup-details">
+                                                <div class="mockup-line w-long"></div>
+                                                <div class="mockup-line w-med"></div>
+                                            </div>
+                                        </div>
+                                        <div class="dropzone-instruction">
+                                            <span class="camera-icon">📷</span>
+                                            <strong>Clic aquí para subir el REVERSO</strong>
+                                            <small>o arrastra la foto hasta aquí</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="dropzone-filled hidden" id="filled-dorso">
+                                        <div class="preview-img-container">
+                                            <img id="img-preview-dorso" src="" alt="Reverso del DNI" class="preview-thumb">
+                                        </div>
+                                        <div class="file-details">
+                                            <span class="file-name" id="file-name-dorso">-</span>
+                                            <span class="file-size" id="file-size-dorso">-</span>
+                                            <span class="file-ready">✅ Documento cargado correctamente</span>
+                                        </div>
+                                        <div class="preview-btn-row">
+                                            <button type="button" class="btn-change-doc" onclick="event.stopPropagation(); triggerFileInput('reg_dni_dorso')">🔄 Cambiar foto</button>
+                                            <button type="button" class="btn-remove-doc" onclick="event.stopPropagation(); removeDniFile('dorso')">🗑️ Quitar</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="dni-card-alert hidden" id="error-dorso">⚠️ Debes subir la foto del reverso de tu DNI.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN CONTRASEÑA -->
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                        <h4 style="font-size:1.05rem; color:#0f172a; margin-bottom:5px;">Contraseña de Acceso</h4>
+                        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 15px;">
+                            Crea una contraseña segura para ingresar a la plataforma. Tu correo (<span id="preview_email" style="font-weight: bold; color: #0f172a;">-</span>) será tu usuario.
+                        </p>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Contraseña *</label>
+                                <input type="password" id="reg_pass1" minlength="6" placeholder="Mínimo 6 caracteres" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Repetir Contraseña *</label>
+                                <input type="password" id="reg_pass2" minlength="6" placeholder="Confirma tu contraseña" required>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -208,7 +332,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="js/firebase-config.js"></script>
-    <script src="js/registro.js"></script>
+    <script src="js/firebase-config.js?v=9.19.0"></script>
+    <script src="js/registro.js?v=9.19.0"></script>
 </body>
 </html>

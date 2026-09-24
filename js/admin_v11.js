@@ -313,7 +313,7 @@ async function showTable(course) {
     document.getElementById('current-course-title').innerText = courseObj ? courseObj.nombre : 'Cargando Curso...';
 
     const tbody = document.querySelector('#students-table tbody');
-    tbody.innerHTML = '<tr><td colspan="8">Cargando...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9">Cargando...</td></tr>';
 
     try {
         const configDoc = await db.collection('config_cursos').doc(course).get();
@@ -353,10 +353,17 @@ async function showTable(course) {
             const pend = uniqueEAlu.filter(e => e.estado === 'Pendiente');
             const prom = corr.length > 0 ? (corr.reduce((a, b) => a + parseFloat(b.nota || 0), 0) / corr.length).toFixed(1) : '-';
 
+            const hasDni = Boolean((s.dni_frente_url && s.dni_dorso_url) || s.dni_documentos_completos || s.dni_frente_url || s.dni_dorso_url);
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${s.full_name}</td>
+                <td><strong>${s.full_name}</strong></td>
                 <td>${s.dni}</td>
+                <td style="text-align:center;">
+                    <button class="btn-badge-dni ${hasDni ? 'has-doc' : 'no-doc'}" onclick="openStudentDniModal('${s.dni}', '${course}')" title="${hasDni ? 'Ver e imprimir DNI frente y reverso' : 'Sin DNI adjunto aún. Clic para ver o cargar'}">
+                        ${hasDni ? '🪪 Ver DNI' : '⚠️ Sin DNI'}
+                    </button>
+                </td>
                 <td>${s.telefono || '---'}</td>
                 <td>${s.email}</td>
                 <td style="text-align:center">${s.edad}</td>
@@ -375,6 +382,586 @@ async function showTable(course) {
             tbody.appendChild(tr);
         });
     } catch (err) { console.error(err); }
+}
+
+// GESTIÓN Y VISUALIZADOR DE DNI DE ALUMNOS (Legajo Institucional)
+let currentDniStudent = null;
+
+async function openStudentDniModal(dni, courseId) {
+    const modal = document.getElementById('student-dni-modal');
+    if (!modal) return;
+
+    let student = studentData[courseId]?.find(s => String(s.dni).trim() === String(dni).trim() || String(s.id).trim() === String(dni).trim());
+    if (!student) {
+        student = { dni: dni, full_name: 'Alumno', email: '' };
+    }
+
+    currentDniStudent = { ...student, courseId };
+
+    document.getElementById('dni-modal-student-name').innerText = student.full_name || 'Alumno';
+    const courseObj = activeCourses.find(c => c.id === courseId);
+    const courseName = courseObj ? courseObj.nombre : courseId;
+    document.getElementById('dni-modal-student-details').innerHTML = `
+        <strong>DNI:</strong> ${student.dni || '---'} &nbsp;|&nbsp; 
+        <strong>CUIL:</strong> ${student.cuil || '---'} &nbsp;|&nbsp; 
+        <strong>Email:</strong> ${student.email || '---'} &nbsp;|&nbsp; 
+        <strong>Curso:</strong> ${courseName}
+    `;
+
+    const body = document.getElementById('dni-modal-body');
+    body.innerHTML = '<p style="text-align:center; padding:30px; color:#64748b;">⏳ Cargando documentación del alumno...</p>';
+    modal.classList.remove('hidden');
+
+    // Si faltan las URLs del DNI en el objeto de curso, buscar en alumnos_registro por DNI o Email
+    if (!student.dni_frente_url || !student.dni_dorso_url) {
+        try {
+            let regSnap = null;
+            if (student.dni) {
+                regSnap = await db.collection('alumnos_registro').doc(String(student.dni).trim()).get();
+                if (!regSnap.exists) {
+                    const qSnap = await db.collection('alumnos_registro').where('dni', '==', String(student.dni).trim()).get();
+                    if (!qSnap.empty) regSnap = qSnap.docs[0];
+                }
+            }
+            if ((!regSnap || !regSnap.exists) && student.email) {
+                const qSnap = await db.collection('alumnos_registro').where('email', '==', String(student.email).trim().toLowerCase()).get();
+                if (!qSnap.empty) regSnap = qSnap.docs[0];
+            }
+
+            if (regSnap && (regSnap.exists || typeof regSnap.data === 'function')) {
+                const regData = typeof regSnap.data === 'function' ? regSnap.data() : regSnap;
+                if (regData.dni_frente_url) student.dni_frente_url = regData.dni_frente_url;
+                if (regData.dni_dorso_url) student.dni_dorso_url = regData.dni_dorso_url;
+                if (regData.cuil && !student.cuil) student.cuil = regData.cuil;
+                if (regData.nacimiento && !student.nacimiento) student.nacimiento = regData.nacimiento;
+                if (regData.calle && !student.calle) student.calle = regData.calle;
+                if (regData.localidad && !student.localidad) student.localidad = regData.localidad;
+                currentDniStudent = { ...student, ...regData, courseId };
+
+                // Guardar en la colección del curso para acelerar futuras consultas
+                try {
+                    await db.collection(`alumnos_${courseId}`).doc(String(student.dni).trim()).set({
+                        dni_frente_url: student.dni_frente_url || '',
+                        dni_dorso_url: student.dni_dorso_url || '',
+                        dni_documentos_completos: Boolean(student.dni_frente_url && student.dni_dorso_url)
+                    }, { merge: true });
+                } catch(e) {}
+            }
+        } catch (err) {
+            console.warn("Aviso cargando DNI desde alumnos_registro:", err);
+        }
+    }
+
+    renderDniModalContent();
+}
+
+function renderDniModalContent() {
+    const student = currentDniStudent;
+    if (!student) return;
+
+    const body = document.getElementById('dni-modal-body');
+    const statusBadge = document.getElementById('dni-modal-status-badge');
+
+    const hasFrente = Boolean(student.dni_frente_url);
+    const hasDorso = Boolean(student.dni_dorso_url);
+    const isComplete = hasFrente && hasDorso;
+
+    if (statusBadge) {
+        statusBadge.innerHTML = isComplete 
+            ? '<span>✅ Documentación Completa (Frente y Reverso)</span>' 
+            : '<span style="color:#b45309;">⚠️ Documentación Incompleta</span>';
+    }
+
+    body.innerHTML = `
+        <div class="dni-view-grid">
+            <!-- FRENTE -->
+            <div class="dni-view-card">
+                <div class="dni-view-card-header">
+                    <span class="dni-view-card-title">1. Frente del DNI</span>
+                    <span style="font-size:0.75rem; font-weight:700; color:${hasFrente ? '#059669' : '#dc2626'};">
+                        ${hasFrente ? '✅ Disponible' : '❌ Pendiente'}
+                    </span>
+                </div>
+                ${hasFrente ? `
+                    <div class="dni-view-img-frame" onclick="openImageWindow('${student.dni_frente_url}')" title="Clic para ver en pantalla completa">
+                        <img src="${student.dni_frente_url}" alt="Frente del DNI">
+                    </div>
+                    <div class="dni-view-actions">
+                        <button class="dni-btn-action" onclick="openImageWindow('${student.dni_frente_url}')">🔍 Pantalla Completa</button>
+                        <a href="${student.dni_frente_url}" download="DNI_Frente_${student.dni || 'alumno'}" target="_blank" class="dni-btn-action">📥 Descargar</a>
+                    </div>
+                ` : `
+                    <div class="dni-empty-box">
+                        <p style="margin:0 0 10px 0; font-size:0.85rem;">No se ha cargado la foto del frente.</p>
+                        <label class="btn-primary-sm" style="cursor:pointer; display:inline-block;">
+                            📤 Cargar Frente
+                            <input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleAdminDniUpload(event, 'frente')">
+                        </label>
+                    </div>
+                `}
+                <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+                    <label style="font-size:0.72rem; color:#64748b; cursor:pointer; text-decoration:underline;">
+                        ${hasFrente ? '🔄 Reemplazar foto frente' : ''}
+                        <input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleAdminDniUpload(event, 'frente')">
+                    </label>
+                </div>
+            </div>
+
+            <!-- REVERSO -->
+            <div class="dni-view-card">
+                <div class="dni-view-card-header">
+                    <span class="dni-view-card-title">2. Reverso / Dorso del DNI</span>
+                    <span style="font-size:0.75rem; font-weight:700; color:${hasDorso ? '#059669' : '#dc2626'};">
+                        ${hasDorso ? '✅ Disponible' : '❌ Pendiente'}
+                    </span>
+                </div>
+                ${hasDorso ? `
+                    <div class="dni-view-img-frame" onclick="openImageWindow('${student.dni_dorso_url}')" title="Clic para ver en pantalla completa">
+                        <img src="${student.dni_dorso_url}" alt="Reverso del DNI">
+                    </div>
+                    <div class="dni-view-actions">
+                        <button class="dni-btn-action" onclick="openImageWindow('${student.dni_dorso_url}')">🔍 Pantalla Completa</button>
+                        <a href="${student.dni_dorso_url}" download="DNI_Reverso_${student.dni || 'alumno'}" target="_blank" class="dni-btn-action">📥 Descargar</a>
+                    </div>
+                ` : `
+                    <div class="dni-empty-box">
+                        <p style="margin:0 0 10px 0; font-size:0.85rem;">No se ha cargado la foto del reverso.</p>
+                        <label class="btn-primary-sm" style="cursor:pointer; display:inline-block;">
+                            📤 Cargar Reverso
+                            <input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleAdminDniUpload(event, 'dorso')">
+                        </label>
+                    </div>
+                `}
+                <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+                    <label style="font-size:0.72rem; color:#64748b; cursor:pointer; text-decoration:underline;">
+                        ${hasDorso ? '🔄 Reemplazar foto reverso' : ''}
+                        <input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleAdminDniUpload(event, 'dorso')">
+                    </label>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function closeStudentDniModal() {
+    const modal = document.getElementById('student-dni-modal');
+    if (modal) modal.classList.add('hidden');
+    currentDniStudent = null;
+}
+
+function openImageWindow(url) {
+    if (!url) return;
+    const win = window.open('');
+    win.document.write(`
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Visualizador DNI</title>
+                <style>
+                    body { margin:0; background:#0f172a; display:flex; justify-content:center; align-items:center; min-height:100vh; }
+                    img { max-width:95vw; max-height:95vh; object-fit:contain; box-shadow:0 10px 25px rgba(0,0,0,0.5); border-radius:8px; }
+                </style>
+            </head>
+            <body>
+                <img src="${url}">
+            </body>
+        </html>
+    `);
+}
+
+// Carga administrativa de DNI
+async function handleAdminDniUpload(event, side) {
+    const file = event.target.files && event.target.files[0];
+    if (!file || !currentDniStudent) return;
+
+    cfpAlert("SUBIENDO", "⏳ Procesando y guardando documento...");
+    try {
+        let fileUrl = '';
+        if (window.storage) {
+            const ext = file.name ? file.name.split('.').pop() : 'jpg';
+            const ref = window.storage.ref().child(`documentos_dni/${currentDniStudent.dni}_admin_${Date.now()}_${side}.${ext}`);
+            const snap = await ref.put(file);
+            fileUrl = await snap.ref.getDownloadURL();
+        }
+
+        if (!fileUrl) {
+            fileUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        const updateObj = {};
+        if (side === 'frente') {
+            updateObj.dni_frente_url = fileUrl;
+            currentDniStudent.dni_frente_url = fileUrl;
+        } else {
+            updateObj.dni_dorso_url = fileUrl;
+            currentDniStudent.dni_dorso_url = fileUrl;
+        }
+
+        updateObj.dni_documentos_completos = Boolean(currentDniStudent.dni_frente_url && currentDniStudent.dni_dorso_url);
+        updateObj.dni_documentos_fecha = new Date().toISOString();
+
+        if (currentDniStudent.courseId && currentDniStudent.dni) {
+            await db.collection(`alumnos_${currentDniStudent.courseId}`).doc(String(currentDniStudent.dni).trim()).set(updateObj, { merge: true });
+        }
+        if (currentDniStudent.dni) {
+            await db.collection('alumnos_registro').doc(String(currentDniStudent.dni).trim()).set(updateObj, { merge: true });
+        }
+
+        closeCfpAlert();
+        renderDniModalContent();
+        if (currentViewedCourse) showTable(currentViewedCourse);
+        cfpAlert("ÉXITO", `✅ Foto del ${side === 'frente' ? 'frente' : 'reverso'} actualizada.`);
+    } catch (e) {
+        console.error("Error admin upload DNI:", e);
+        cfpAlert("ERROR", "No se pudo subir la foto: " + e.message);
+    }
+}
+
+// IMPRIMIR DNI (LEGAJO INSTITUCIONAL DEL ALUMNO)
+function printStudentDniDoc() {
+    const student = currentDniStudent;
+    if (!student) return;
+
+    const courseObj = activeCourses.find(c => c.id === (student.courseId || currentViewedCourse));
+    const courseName = courseObj ? courseObj.nombre : (student.courseId || currentViewedCourse || 'Sin curso asignado');
+    const printDate = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    const printWin = window.open('', '_blank');
+    printWin.document.write(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <title>Legajo DNI - ${student.full_name || 'Alumno'}</title>
+            <style>
+                @page {
+                    size: A4 portrait;
+                    margin: 15mm;
+                }
+                body {
+                    font-family: 'Helvetica Neue', Arial, sans-serif;
+                    color: #1e293b;
+                    margin: 0;
+                    padding: 0;
+                    font-size: 10pt;
+                }
+                .header-inst {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    border-bottom: 2px solid #0284c7;
+                    padding-bottom: 12px;
+                    margin-bottom: 18px;
+                }
+                .header-logo {
+                    width: 75px;
+                    height: auto;
+                }
+                .header-text {
+                    text-align: center;
+                    flex-grow: 1;
+                }
+                .header-text h1 {
+                    font-size: 13pt;
+                    font-weight: 800;
+                    margin: 0 0 4px 0;
+                    color: #0f172a;
+                    text-transform: uppercase;
+                }
+                .header-text p {
+                    font-size: 8.5pt;
+                    color: #475569;
+                    margin: 2px 0;
+                }
+                .doc-title-badge {
+                    text-align: center;
+                    background: #f1f5f9;
+                    border: 1px solid #cbd5e1;
+                    padding: 6px;
+                    font-size: 11pt;
+                    font-weight: 800;
+                    letter-spacing: 0.05em;
+                    margin-bottom: 18px;
+                    border-radius: 4px;
+                }
+                .student-data-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 22px;
+                }
+                .student-data-table th, .student-data-table td {
+                    border: 1px solid #cbd5e1;
+                    padding: 6px 10px;
+                    font-size: 9.5pt;
+                }
+                .student-data-table th {
+                    background: #f8fafc;
+                    width: 25%;
+                    text-align: left;
+                    font-weight: 700;
+                    color: #334155;
+                }
+                .dni-cards-container {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                    margin-bottom: 30px;
+                }
+                .dni-print-card {
+                    border: 1.5px solid #0f172a;
+                    border-radius: 8px;
+                    padding: 10px;
+                    text-align: center;
+                    background: #ffffff;
+                }
+                .dni-print-card-title {
+                    font-size: 10pt;
+                    font-weight: 800;
+                    text-transform: uppercase;
+                    margin-bottom: 8px;
+                    border-bottom: 1px solid #e2e8f0;
+                    padding-bottom: 4px;
+                }
+                .dni-print-img {
+                    width: 100%;
+                    height: 220px;
+                    object-fit: contain;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 4px;
+                }
+                .no-img-placeholder {
+                    height: 220px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: #f8fafc;
+                    border: 1px dashed #94a3b8;
+                    color: #64748b;
+                    font-style: italic;
+                    font-size: 9pt;
+                }
+                .signature-section {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 40px;
+                    padding-top: 15px;
+                }
+                .signature-box {
+                    width: 45%;
+                    text-align: center;
+                    border-top: 1px solid #334155;
+                    padding-top: 6px;
+                    font-size: 9pt;
+                    font-weight: 600;
+                }
+                .footer-meta {
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    font-size: 7.5pt;
+                    color: #94a3b8;
+                    display: flex;
+                    justify-content: space-between;
+                    border-top: 1px solid #e2e8f0;
+                    padding-top: 5px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header-inst">
+                <img src="assets/Logo_R10_GE.png" class="header-logo" alt="Logo">
+                <div class="header-text">
+                    <h1>Plataforma Educativa de Formación Profesional</h1>
+                    <p>DIRECCIÓN GENERAL DE CULTURA Y EDUCACIÓN - REGIÓN 10</p>
+                    <p>CENTRO DE FORMACIÓN PROFESIONAL N° 403</p>
+                </div>
+            </div>
+
+            <div class="doc-title-badge">
+                CONSTANCIA DE IDENTIDAD Y LEGAJO DIGITAL DEL ALUMNO
+            </div>
+
+            <table class="student-data-table">
+                <tr>
+                    <th>Apellido y Nombre:</th>
+                    <td colspan="3"><strong>${student.full_name || '---'}</strong></td>
+                </tr>
+                <tr>
+                    <th>DNI:</th>
+                    <td><strong>${student.dni || '---'}</strong></td>
+                    <th>CUIL:</th>
+                    <td>${student.cuil || '---'}</td>
+                </tr>
+                <tr>
+                    <th>Fecha Nacimiento:</th>
+                    <td>${student.nacimiento || '---'} (${student.edad || cleanAge(student.edad, student.nacimiento)} años)</td>
+                    <th>Sexo:</th>
+                    <td>${student.sexo || '---'}</td>
+                </tr>
+                <tr>
+                    <th>Email Institucional:</th>
+                    <td>${student.email || '---'}</td>
+                    <th>Teléfono / Celular:</th>
+                    <td>${student.celular || student.telefono || '---'}</td>
+                </tr>
+                <tr>
+                    <th>Domicilio:</th>
+                    <td>${(student.calle || '') + ' ' + (student.altura || '') + (student.piso ? ' Piso ' + student.piso : '') + (student.depto ? ' Dpto ' + student.depto : '')}</td>
+                    <th>Localidad / Distrito:</th>
+                    <td>${student.localidad || '---'} ${student.distrito ? ' (' + student.distrito + ')' : ''}</td>
+                </tr>
+                <tr>
+                    <th>Curso Inscripto:</th>
+                    <td colspan="3"><strong>${courseName}</strong></td>
+                </tr>
+            </table>
+
+            <div class="dni-cards-container">
+                <div class="dni-print-card">
+                    <div class="dni-print-card-title">Frente del Documento (DNI)</div>
+                    ${student.dni_frente_url ? `
+                        <img src="${student.dni_frente_url}" class="dni-print-img" alt="DNI Frente">
+                    ` : `
+                        <div class="no-img-placeholder">Documento no digitalizado</div>
+                    `}
+                </div>
+                <div class="dni-print-card">
+                    <div class="dni-print-card-title">Reverso / Dorso del Documento (DNI)</div>
+                    ${student.dni_dorso_url ? `
+                        <img src="${student.dni_dorso_url}" class="dni-print-img" alt="DNI Dorso">
+                    ` : `
+                        <div class="no-img-placeholder">Documento no digitalizado</div>
+                    `}
+                </div>
+            </div>
+
+            <div class="signature-section">
+                <div class="signature-box">
+                    Firma y Aclaración del Alumno
+                </div>
+                <div class="signature-box">
+                    Sello y Firma - Secretaría / Autoridad CFP
+                </div>
+            </div>
+
+            <div class="footer-meta">
+                <span>Plataforma R10 • Legajo Académico Oficial</span>
+                <span>Impreso el: ${printDate}</span>
+                <span>Estado Doc: ${student.dni_frente_url && student.dni_dorso_url ? 'COMPLETA' : 'PARCIAL'}</span>
+            </div>
+
+            <script>
+                window.onload = function() {
+                    window.print();
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    printWin.document.close();
+}
+
+// IMPRIMIR PLANILLA DEL CURSO
+function printCourseRoster() {
+    if (!currentViewedCourse) return;
+    const courseObj = activeCourses.find(c => c.id === currentViewedCourse);
+    const courseName = courseObj ? courseObj.nombre : currentViewedCourse;
+    const students = studentData[currentViewedCourse] || [];
+
+    if (students.length === 0) {
+        return cfpAlert("AVISO", "El curso no tiene alumnos registrados para imprimir.");
+    }
+
+    const printDate = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    let rowsHtml = '';
+    students.forEach((s, idx) => {
+        const hasDniDoc = Boolean((s.dni_frente_url && s.dni_dorso_url) || s.dni_documentos_completos);
+        rowsHtml += `
+            <tr>
+                <td style="text-align:center;">${idx + 1}</td>
+                <td><strong>${s.full_name || '---'}</strong></td>
+                <td><strong>${s.dni || '---'}</strong></td>
+                <td>${s.cuil || '---'}</td>
+                <td>${s.celular || s.telefono || '---'}</td>
+                <td>${s.email || '---'}</td>
+                <td style="text-align:center;">${hasDniDoc ? '✅ SÍ' : '⚠️ NO'}</td>
+                <td style="text-align:center;">${s.edad || '---'}</td>
+                <td style="width:120px;"></td>
+            </tr>
+        `;
+    });
+
+    const printWin = window.open('', '_blank');
+    printWin.document.write(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <title>Planilla de Alumnos - ${courseName}</title>
+            <style>
+                @page { size: A4 landscape; margin: 12mm; }
+                body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; color: #1e293b; font-size: 8.5pt; }
+                .header-inst { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0284c7; padding-bottom: 8px; margin-bottom: 12px; }
+                .header-inst h1 { font-size: 12pt; margin: 0 0 3px 0; color: #0f172a; text-transform: uppercase; }
+                .header-inst p { font-size: 8pt; color: #64748b; margin: 0; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th, td { border: 1px solid #334155; padding: 5px 7px; text-align: left; }
+                th { background: #f1f5f9; font-weight: 800; font-size: 8pt; text-transform: uppercase; }
+                .meta-bar { display: flex; justify-content: space-between; font-size: 8pt; font-weight: 700; color: #475569; margin-bottom: 8px; }
+            </style>
+        </head>
+        <body>
+            <div class="header-inst">
+                <div>
+                    <h1>Planilla Oficial de Alumnos Inscriptos</h1>
+                    <p>DIRECCIÓN GENERAL DE CULTURA Y EDUCACIÓN • REGIÓN 10 • CFP N° 403</p>
+                </div>
+                <div style="text-align:right;">
+                    <p><strong>Fecha:</strong> ${printDate}</p>
+                    <p><strong>Total Matriculados:</strong> ${students.length}</p>
+                </div>
+            </div>
+
+            <div class="meta-bar">
+                <span>CURSO: ${courseName.toUpperCase()}</span>
+                <span>VERIFICACIÓN INSTITUCIONAL DE DNI Y ASISTENCIA</span>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:30px; text-align:center;">#</th>
+                        <th>Apellido y Nombre</th>
+                        <th>DNI</th>
+                        <th>CUIL</th>
+                        <th>Teléfono</th>
+                        <th>Email</th>
+                        <th style="text-align:center;">Doc. DNI</th>
+                        <th style="text-align:center;">Edad</th>
+                        <th>Firma / Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+
+            <script>
+                window.onload = function() {
+                    window.print();
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    printWin.document.close();
 }
 
 // GESTIÓN MANUAL DE ALUMNOS
@@ -605,6 +1192,9 @@ async function downloadCourseFullExcel(courseId, courseName) {
                 "APELLIDO Y NOMBRE": s.full_name || `${s.apellidos || ''}, ${s.nombres || ''}`.trim(),
                 "DNI": s.dni || s.id || '',
                 "CUIL": s.cuil || '',
+                "DOC DNI FRENTE": s.dni_frente_url ? s.dni_frente_url : (s.dni_documentos_completos ? 'Cargado en plataforma' : 'Pendiente'),
+                "DOC DNI REVERSO": s.dni_dorso_url ? s.dni_dorso_url : (s.dni_documentos_completos ? 'Cargado en plataforma' : 'Pendiente'),
+                "ESTADO DOCUMENTACIÓN DNI": ((s.dni_frente_url && s.dni_dorso_url) || s.dni_documentos_completos) ? 'COMPLETA' : 'PENDIENTE',
                 "FECHA NACIMIENTO": s.nacimiento || '',
                 "EDAD": s.edad || cleanAge(s.edad, s.nacimiento),
                 "SEXO": s.sexo || '',
