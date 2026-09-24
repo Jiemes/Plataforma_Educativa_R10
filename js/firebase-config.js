@@ -19,4 +19,4 @@ if (!firebase.apps.length) {
 // Exportar servicios para usar en toda la app
 window.db = firebase.firestore();
 window.authFirebase = firebase.auth();
-window.storage = firebase.storage();
+window.storage = (typeof firebase.storage === 'function') ? firebase.storage() : null;

@@ -560,34 +560,14 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
             }
         }
 
-        // 2. DOCUMENTACIÓN DNI: Almacenamiento seguro, instantáneo y optimizado
+        // 2. DOCUMENTACIÓN DNI: Almacenamiento seguro, instantáneo y optimizado en Firestore
         updateLoadingProgress('3/4: Registrando fotos de DNI y legajo institucional...', 75);
 
-        let urlFrente = dniPreviews.frente || '';
-        let urlDorso = dniPreviews.dorso || '';
-
-        // Si Firebase Storage está disponible y el origen no sufre de CORS no configurado
-        if (window.storage && window.location.hostname !== 'jiemes.github.io') {
-            try {
-                const ts = Date.now();
-                const extFrente = dniFiles.frente.name ? dniFiles.frente.name.split('.').pop() : 'jpg';
-                const extDorso = dniFiles.dorso.name ? dniFiles.dorso.name.split('.').pop() : 'jpg';
-
-                const refFrente = window.storage.ref().child(`documentos_dni/${dniClean}_${uid}/frente_${ts}.${extFrente}`);
-                const refDorso = window.storage.ref().child(`documentos_dni/${dniClean}_${uid}/reverso_${ts}.${extDorso}`);
-
-                const snapFrente = await refFrente.put(dniFiles.frente);
-                urlFrente = await snapFrente.ref.getDownloadURL();
-
-                const snapDorso = await refDorso.put(dniFiles.dorso);
-                urlDorso = await snapDorso.ref.getDownloadURL();
-            } catch (storageError) {
-                console.warn("Storage upload no disponible en este entorno, utilizando almacenamiento directo optimizado.");
-            }
-        }
-
-        userData.dni_frente_url = urlFrente;
-        userData.dni_dorso_url = urlDorso;
+        // Guardamos las imágenes optimizadas (~70KB cada una) directamente en el legajo del alumno
+        userData.dni_frente_url = dniPreviews.frente || '';
+        userData.dni_dorso_url = dniPreviews.dorso || '';
+        userData.dni_documentos_completos = Boolean(userData.dni_frente_url && userData.dni_dorso_url);
+        userData.dni_documentos_fecha = new Date().toISOString();
 
         // Sanitizar campos undefined antes de enviar a Firestore
         Object.keys(userData).forEach(k => {

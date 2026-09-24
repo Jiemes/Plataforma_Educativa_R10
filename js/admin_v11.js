@@ -608,18 +608,7 @@ async function handleAdminDniUpload(event, side) {
             reader.readAsDataURL(file);
         });
 
-        let fileUrl = compressedDataUrl;
-
-        if (window.storage && window.location.hostname !== 'jiemes.github.io') {
-            try {
-                const ext = file.name ? file.name.split('.').pop() : 'jpg';
-                const ref = window.storage.ref().child(`documentos_dni/${currentDniStudent.dni}_admin_${Date.now()}_${side}.${ext}`);
-                const snap = await ref.put(file);
-                fileUrl = await snap.ref.getDownloadURL();
-            } catch (stErr) {
-                console.warn("Storage upload no disponible, guardando imagen comprimida en Firestore:", stErr);
-            }
-        }
+        const fileUrl = compressedDataUrl;
 
         const updateObj = {};
         if (side === 'frente') {
