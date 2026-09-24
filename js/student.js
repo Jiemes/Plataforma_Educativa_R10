@@ -651,15 +651,25 @@ async function loadContent() {
                             <label for="link-${i}">Pega aquí el link de Drive con tu actividad: <span id="status-icon-${i}"></span></label>
                             <input type="text" id="link-${i}" class="input-premium-task link-input-validate" 
                                    data-semana="${i}"
+                                   name="link_actividad_sem_${i}"
+                                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
                                    oninput="validateLinkLive(${i}, this.value)"
-                                   placeholder="https://drive.google.com/..." 
-                                   value="${entrega ? (entrega.archivo_url || '') : ''}">
+                                   placeholder="Pega aquí el enlace directo al archivo de tu actividad..." 
+                                   value="${(entrega && entrega.archivo_url && !entrega.archivo_url.includes('@')) ? entrega.archivo_url : ''}">
                         </div>
 
                         <div id="validation-banner-${i}" class="validation-banner-task hidden"></div>
 
                         <div class="help-text-task">
-                            <p>💡 <strong>Ayuda:</strong> Sube tu archivo a Google Drive, asegúrate de que el acceso sea público y pega el link aquí.</p>
+                            <div class="help-task-header">
+                                <span class="help-task-icon">💡</span>
+                                <strong>Requisitos para enviar tu actividad resuelta:</strong>
+                            </div>
+                            <ul class="help-task-list">
+                                <li><strong>📄 Enlace a un ARCHIVO individual:</strong> Debe ser el link directo a tu documento (Google Docs, Hoja de cálculo, Presentación o archivo PDF en Drive). <span class="badge-no-folder">❌ No enlaces de carpetas</span></li>
+                                <li><strong>🔓 Permisos de visualización:</strong> En tu archivo de Google Drive, haz clic en el botón <b>Compartir</b> y cambia el "Acceso general" a <b>"Cualquier persona con el enlace"</b> (modo Lector) para que el docente pueda abrirlo y corregirlo.</li>
+                                <li><strong>📋 Copiar y pegar:</strong> Copia el enlace y pégalo en este casillero. La plataforma verificará de forma automática que no sea una carpeta y que tenga permisos antes de enviar.</li>
+                            </ul>
                         </div>
 
                         <button id="btn-submit-${i}" 
@@ -704,6 +714,11 @@ async function loadContent() {
             `;
             weeksContainer.appendChild(introCard);
         }
+
+        // Limpiar cualquier autocompletado indebido de email en los inputs de entrega
+        cleanTaskInputAutofills();
+        setTimeout(cleanTaskInputAutofills, 250);
+        setTimeout(cleanTaskInputAutofills, 800);
 
     } catch (e) { console.error(e); }
 }
@@ -775,13 +790,28 @@ async function submitTask(semana) {
     const rawUrl = linkInput ? linkInput.value.trim() : '';
 
     if (!rawUrl) return cfpAlert("ATENCIÓN", "Por favor, pega el link de tu actividad.");
-    if (!rawUrl.toLowerCase().includes('google.com')) return cfpAlert("ERROR", "El link debe pertenecer a Google. Por favor, verifica el enlace.");
 
-    // VALIDACIÓN: Evitar carpetas
-    if (rawUrl.includes('/folders/') || rawUrl.includes('folderview') || rawUrl.includes('/u/0/f')) {
+    // Evitar que envíen un email pegado por error
+    if (rawUrl.includes('@') && !rawUrl.includes('google.com')) {
+        linkInput.value = '';
+        const icon = document.getElementById(`status-icon-${semana}`);
+        if (icon) icon.innerHTML = '';
+        return cfpAlert("ATENCIÓN", "Has pegado una dirección de correo electrónico en lugar del enlace a tu archivo. Por favor, pega el link de Google Drive de tu documento.");
+    }
+
+    if (!rawUrl.toLowerCase().includes('google.com')) return cfpAlert("ERROR", "El link debe pertenecer a Google Drive o Google Docs. Por favor, verifica el enlace.");
+
+    // VALIDACIÓN ESTRICTA: Evitar carpetas
+    if (/([/.]folders\/|folderview|embeddedfolderview|\/u\/\d+\/folders\/)/i.test(rawUrl)) {
         return cfpAlert(
-            "❌ ERROR: HAS PEGADO UNA CARPETA", 
-            "Estás intentando subir una CARPETA completa en lugar del archivo.\n\n👉 SOLUCIÓN:\n1. Entra a tu carpeta de Google Drive.\n2. Haz clic derecho sobre tu ARCHIVO específico (Doc, PPT, PDF).\n3. Selecciona 'Compartir' -> 'Copiar vínculo'.\n4. Borra el link anterior y pega el nuevo aquí."
+            "📁❌ ERROR: HAS PEGADO UNA CARPETA", 
+            "Estás intentando enviar una CARPETA completa de Google Drive en lugar de un archivo individual.\n\n" +
+            "👉 CÓMO SOLUCIONARLO:\n" +
+            "1. Entra a tu carpeta de Google Drive.\n" +
+            "2. Abre tu archivo específico (Google Docs, Planilla de cálculo, Presentación o PDF) o hazle clic derecho.\n" +
+            "3. Selecciona 'Compartir' -> 'Copiar enlace'.\n" +
+            "4. Asegúrate de que el acceso general esté configurado en 'Cualquier persona con el enlace'.\n" +
+            "5. Pega el enlace del archivo aquí y vuelve a enviar."
         );
     }
 
@@ -1015,13 +1045,44 @@ async function saveNewPassword() {
     }
 }
 
-// --- SISTEMA DE VALIDACIÓN DE DRIVE (v9.18.50) ---
+// --- SISTEMA DE VALIDACIÓN DE DRIVE Y ARCHIVOS (v9.18.58) ---
 let driveValidationTimers = {};
+
+function cleanTaskInputAutofills() {
+    document.querySelectorAll('.link-input-validate').forEach(input => {
+        if (input.value && input.value.includes('@') && !input.value.includes('google.com')) {
+            input.value = '';
+            const sem = input.getAttribute('data-semana');
+            const icon = document.getElementById(`status-icon-${sem}`);
+            if (icon) icon.innerHTML = '';
+            const btn = document.getElementById(`btn-submit-${sem}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            }
+        }
+    });
+}
 
 async function validateLinkLive(semana, url) {
     const statusIcon = document.getElementById(`status-icon-${semana}`);
     const banner = document.getElementById(`validation-banner-${semana}`);
     const btn = document.getElementById(`btn-submit-${semana}`);
+
+    // Si el navegador autocompletó con un email, limpiarlo de inmediato
+    if (url && url.includes('@') && !url.includes('google.com')) {
+        const input = document.getElementById(`link-${semana}`);
+        if (input) input.value = '';
+        if (statusIcon) statusIcon.innerHTML = '';
+        if (banner) banner.classList.add('hidden');
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+        }
+        return;
+    }
 
     // Estado Inmediato: Bloquear botón mientras se escribe o verifica
     if (btn) {
@@ -1030,68 +1091,123 @@ async function validateLinkLive(semana, url) {
         btn.style.cursor = 'not-allowed';
     }
 
-    if (!url) {
-        statusIcon.innerHTML = '';
+    if (!url || !url.trim()) {
+        if (statusIcon) statusIcon.innerHTML = '';
         if (banner) banner.classList.add('hidden');
         if (btn) { btn.disabled = true; } 
         return;
     }
 
-    // Debounce de 500ms para evitar spam de validaciones
+    // Debounce de 400ms para evitar spam de validaciones
     clearTimeout(driveValidationTimers[semana]);
     driveValidationTimers[semana] = setTimeout(async () => {
-        
-        if (!url.toLowerCase().includes('google.com')) {
-            statusIcon.innerHTML = '❌';
-            return;
-        }
+        const cleanUrl = url.trim();
 
-        // EXTRAER ID
-        const idMatch = url.match(/\/d\/(.+?)(\/|$)/) || url.match(/id=(.+?)(&|$)/);
-        const fileId = idMatch ? idMatch[1].split(/[?&]/)[0] : null;
-
-        if (!fileId) {
-            statusIcon.innerHTML = '⚠️';
-            return;
-        }
-
-        // isChecking = true
-        statusIcon.innerHTML = '<span class="spinner-verify">⏳</span> Verificando permisos...';
-        
-        const img = new Image();
-        img.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w20&t=${Date.now()}`;
-        
-        img.onload = () => {
-            // isValidLink = true, isChecking = false
-            statusIcon.innerHTML = '✅ <span style="color:#10b981; font-size:0.8rem;">Link Correcto</span>';
-            if (banner) banner.classList.add('hidden');
-            if (btn) {
-                btn.style.opacity = '1';
-                btn.disabled = false;
-                btn.style.cursor = 'pointer';
-                btn.style.background = '#0ea5e9'; // Color activo
+        // 1. Debe pertenecer a Google (drive o docs)
+        if (!cleanUrl.toLowerCase().includes('google.com')) {
+            if (statusIcon) statusIcon.innerHTML = '❌ <span style="color:#ef4444; font-size:0.8rem;">Enlace no válido</span>';
+            if (banner) {
+                banner.innerHTML = `
+                    <div style="background:#fef2f2; border:1px solid #fecaca; padding:14px; border-radius:12px; margin-top:10px; font-size:0.85rem; color:#991b1b; animation: fadeIn 0.3s ease;">
+                        <strong style="display:block; margin-bottom:6px; font-size:0.9rem;">❌ El enlace no pertenece a Google Drive o Google Docs</strong>
+                        Asegúrate de pegar un enlace que comience con <code>https://drive.google.com/...</code> o <code>https://docs.google.com/...</code>.
+                    </div>
+                `;
+                banner.classList.remove('hidden');
             }
-        };
+            if (btn) btn.disabled = true;
+            return;
+        }
 
-        img.onerror = () => {
-            // isValidLink = false, isChecking = false
-            statusIcon.innerHTML = '🔒 <span style="color:#ef4444; font-size:0.8rem;">Acceso Restringido</span>';
+        // 2. DETECCIÓN ESTRICTA DE CARPETA (FOLDER)
+        const isFolder = /([/.]folders\/|folderview|embeddedfolderview|\/u\/\d+\/folders\/)/i.test(cleanUrl);
+        if (isFolder) {
+            if (statusIcon) statusIcon.innerHTML = '📁 <span style="color:#dc2626; font-size:0.82rem; font-weight:700;">Es una Carpeta</span>';
             if (btn) {
                 btn.disabled = true;
                 btn.style.opacity = '0.5';
                 btn.style.cursor = 'not-allowed';
             }
-            
+            if (banner) {
+                banner.innerHTML = `
+                    <div style="background:#fff1f2; border:1.5px solid #fda4af; padding:16px; border-radius:12px; margin-top:12px; font-size:0.85rem; color:#9f1239; animation: fadeIn 0.3s ease;">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                            <span style="font-size:1.4rem;">📁❌</span>
+                            <strong style="font-size:0.95rem; color:#be123c;">¡Atención! Has pegado el enlace de una CARPETA, no de un archivo</strong>
+                        </div>
+                        <p style="margin:0 0 10px 0; line-height:1.45; color:#374151;">
+                            No es posible enviar una carpeta completa. Debes enviar el <strong>enlace directo al archivo o documento individual</strong> de tu actividad (Google Docs, Planilla, Presentación o PDF).
+                        </p>
+                        <div style="background:#ffffff; border:1px solid #fecdd3; border-radius:10px; padding:12px 14px;">
+                            <strong style="color:#9f1239; display:block; margin-bottom:6px;">👉 Cómo obtener el enlace correcto del archivo:</strong>
+                            <ol style="margin:0; padding-left:18px; line-height:1.55; color:#334155;">
+                                <li>Entra a tu carpeta en Google Drive y ubica el archivo de la actividad.</li>
+                                <li>Abre el archivo (o hazle clic derecho) y presiona <b>"Compartir"</b>.</li>
+                                <li>En "Acceso general", cambia a <b>"Cualquier persona con el enlace"</b> (modo Lector).</li>
+                                <li>Haz clic en <b>"Copiar enlace"</b> del documento.</li>
+                                <li>Borra el enlace de la carpeta y pega el enlace del archivo aquí.</li>
+                            </ol>
+                        </div>
+                    </div>
+                `;
+                banner.classList.remove('hidden');
+            }
+            return;
+        }
+
+        // 3. EXTRAER ID DEL ARCHIVO
+        const idMatch = cleanUrl.match(/\/d\/(.+?)(\/|$)/) || cleanUrl.match(/id=(.+?)(&|$)/);
+        const fileId = idMatch ? idMatch[1].split(/[?&]/)[0] : null;
+
+        if (!fileId) {
+            if (statusIcon) statusIcon.innerHTML = '⚠️ <span style="color:#d97706; font-size:0.82rem;">Enlace no reconocido</span>';
+            if (btn) btn.disabled = true;
+            if (banner) {
+                banner.innerHTML = `
+                    <div style="background:#fffbeb; border:1px solid #fde68a; padding:14px; border-radius:12px; margin-top:10px; font-size:0.85rem; color:#92400e; animation: fadeIn 0.3s ease;">
+                        <strong>⚠️ Enlace de archivo no reconocido</strong>
+                        <p style="margin:5px 0 0 0;">Asegúrate de copiar el enlace del archivo individual desde la opción 'Compartir' de Google Drive o Google Docs.</p>
+                    </div>
+                `;
+                banner.classList.remove('hidden');
+            }
+            return;
+        }
+
+        // 4. VERIFICAR PERMISOS PÚBLICOS
+        if (statusIcon) statusIcon.innerHTML = '<span class="spinner-verify">⏳</span> Verificando permisos del archivo...';
+
+        const img = new Image();
+        img.src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w20&t=${Date.now()}`;
+
+        img.onload = () => {
+            if (statusIcon) statusIcon.innerHTML = '✅ <span style="color:#10b981; font-size:0.82rem; font-weight:700;">Archivo Válido y Accesible</span>';
+            if (banner) banner.classList.add('hidden');
+            if (btn) {
+                btn.style.opacity = '1';
+                btn.disabled = false;
+                btn.style.cursor = 'pointer';
+                btn.style.background = '#0ea5e9';
+            }
+        };
+
+        img.onerror = () => {
+            if (statusIcon) statusIcon.innerHTML = '🔒 <span style="color:#ef4444; font-size:0.82rem; font-weight:700;">Acceso Restringido</span>';
+            if (btn) {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            }
             if (banner) {
                 banner.innerHTML = `
                     <div style="background:#fff7ed; border:1px solid #fed7aa; padding:15px; border-radius:12px; margin-top:10px; font-size:0.85rem; color:#9a3412; animation: fadeIn 0.3s ease;">
                         <strong style="display:block; margin-bottom:10px; font-size:0.9rem;">⚠️ ¡Atención! Tu archivo no es accesible.</strong>
-                        El sistema detectó que tu enlace de Google Drive está en modo Privado. Para que el profesor pueda corregir tu actividad, sigue estos pasos:
-                        <ol style="margin:10px 0; padding-left:20px;">
-                            <li>Abre tu archivo en Google Drive.</li>
+                        El sistema detectó que tu enlace de Google Drive está en modo <strong>Privado / Restringido</strong>. Para que el docente pueda abrirlo y corregir tu actividad, sigue estos pasos:
+                        <ol style="margin:10px 0; padding-left:20px; line-height:1.5;">
+                            <li>Abre tu archivo en Google Drive o Google Docs.</li>
                             <li>Haz clic en el botón azul <b>"Compartir"</b> (arriba a la derecha).</li>
                             <li>En "Acceso general", cambia "Restringido" por <b>"Cualquier persona con el enlace"</b>.</li>
-                            <li>Asegúrate de que el rol sea <b>"Lector"</b>.</li>
+                            <li>Asegúrate de que el rol sea <b>"Lector"</b> o <b>"Comentarista"</b>.</li>
                             <li>Haz clic en <b>"Copiar enlace"</b> y vuelve a pegarlo aquí.</li>
                         </ol>
                     </div>
@@ -1099,7 +1215,7 @@ async function validateLinkLive(semana, url) {
                 banner.classList.remove('hidden');
             }
         };
-    }, 500);
+    }, 400);
 }
 
 initStudentDashboard();

@@ -579,17 +579,61 @@ body {
 }
 
 .help-text-task {
-    background: #fffbeb;
-    border-left: 4px solid #fbbf24;
-    padding: 10px;
-    margin-bottom: 15px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #0284c7;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+.help-task-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: #0369a1;
+    margin-bottom: 8px;
+}
+
+.help-task-icon {
+    font-size: 1.1rem;
+}
+
+.help-task-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 0.78rem;
+    color: #334155;
+    line-height: 1.55;
+}
+
+.help-task-list li {
+    margin-bottom: 5px;
+}
+
+.help-task-list li:last-child {
+    margin-bottom: 0;
+}
+
+.badge-no-folder {
+    display: inline-block;
+    background: #fee2e2;
+    color: #b91c1c;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 1px 6px;
     border-radius: 4px;
+    border: 1px solid #fca5a5;
+    margin-left: 4px;
 }
 
 .help-text-task p {
-    font-size: 0.75rem;
-    color: #92400e;
-    line-height: 1.4;
+    font-size: 0.78rem;
+    color: #334155;
+    line-height: 1.5;
     margin: 0;
 }
 
