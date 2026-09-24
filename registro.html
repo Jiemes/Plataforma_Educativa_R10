@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="assets/Logo_R10_GE.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/registro.css?v=9.19.0">
+    <link rel="stylesheet" href="css/registro.css?v=9.19.4">
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
@@ -338,18 +338,45 @@
         </div>
     </div>
 
-    <!-- Modal de error -->
-    <div id="cfp-alert" class="alert-modal-overlay">
-        <div class="alert-modal-content">
-            <img src="assets/Logo_R10_GE.png" alt="Logo" class="alert-logo">
-            <div id="alert-title" class="alert-title">ATENCIÓN</div>
-            <div id="alert-message" class="alert-message">Mensaje del sistema</div>
-            <button class="btn-alert-confirm" onclick="document.getElementById('cfp-alert').classList.remove('active')">ENTENDIDO</button>
+    <!-- Cartel / Modal de Cargando y Guardando Documentación -->
+    <div id="registro-loading-modal" class="loading-modal-overlay">
+        <div class="loading-modal-card">
+            <div class="loading-spinner-wrapper">
+                <div class="loading-spinner-ring"></div>
+                <div class="loading-spinner-icon" id="loading-spinner-icon">🪪</div>
+            </div>
+            
+            <h3 id="loading-modal-title" class="loading-title">Guardando documentación y creando tu legajo...</h3>
+            
+            <div class="loading-main-alert">
+                <strong>Por favor, espera unos instantes sin salir de esta pantalla y no toques nada.</strong>
+            </div>
+            
+            <p id="loading-modal-desc" class="loading-desc">
+                Estamos procesando las fotos de tu DNI (frente y reverso), optimizando la imagen y registrando tu cuenta de alumno en el sistema institucional.
+            </p>
+
+            <div class="loading-progress-box">
+                <div class="loading-progress-bar-bg">
+                    <div id="loading-progress-bar-fill" class="loading-progress-bar-fill" style="width: 25%;"></div>
+                </div>
+                <div class="loading-progress-labels">
+                    <span id="loading-modal-step">Comprimiendo y optimizando DNI...</span>
+                    <span id="loading-modal-percent">25%</span>
+                </div>
+            </div>
+
+            <div class="loading-warning-box">
+                <div class="warning-icon">⚠️</div>
+                <div class="warning-text">
+                    <strong>Importante:</strong> No cierres esta ventana ni presiones el botón volver hasta que finalice el proceso.
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Scripts -->
     <script src="js/firebase-config.js?v=9.19.0"></script>
-    <script src="js/registro.js?v=9.19.3"></script>
+    <script src="js/registro.js?v=9.19.4"></script>
 </body>
 </html>

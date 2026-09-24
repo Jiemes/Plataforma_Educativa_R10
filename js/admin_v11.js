@@ -576,21 +576,49 @@ async function handleAdminDniUpload(event, side) {
 
     cfpAlert("SUBIENDO", "⏳ Procesando y guardando documento...");
     try {
-        let fileUrl = '';
-        if (window.storage) {
-            const ext = file.name ? file.name.split('.').pop() : 'jpg';
-            const ref = window.storage.ref().child(`documentos_dni/${currentDniStudent.dni}_admin_${Date.now()}_${side}.${ext}`);
-            const snap = await ref.put(file);
-            fileUrl = await snap.ref.getDownloadURL();
-        }
+        // Comprimir imagen usando canvas para legajo ultrarrápido
+        const compressedDataUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (loadEvent) => {
+                const img = new Image();
+                img.onload = () => {
+                    const maxDim = 1100;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > maxDim || height > maxDim) {
+                        if (width > height) {
+                            height = Math.round((height * maxDim) / width);
+                            width = maxDim;
+                        } else {
+                            width = Math.round((width * maxDim) / height);
+                            height = maxDim;
+                        }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.74));
+                };
+                img.onerror = () => resolve(loadEvent.target.result);
+                img.src = loadEvent.target.result;
+            };
+            reader.onerror = () => resolve('');
+            reader.readAsDataURL(file);
+        });
 
-        if (!fileUrl) {
-            fileUrl = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = e => resolve(e.target.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
+        let fileUrl = compressedDataUrl;
+
+        if (window.storage && window.location.hostname !== 'jiemes.github.io') {
+            try {
+                const ext = file.name ? file.name.split('.').pop() : 'jpg';
+                const ref = window.storage.ref().child(`documentos_dni/${currentDniStudent.dni}_admin_${Date.now()}_${side}.${ext}`);
+                const snap = await ref.put(file);
+                fileUrl = await snap.ref.getDownloadURL();
+            } catch (stErr) {
+                console.warn("Storage upload no disponible, guardando imagen comprimida en Firestore:", stErr);
+            }
         }
 
         const updateObj = {};

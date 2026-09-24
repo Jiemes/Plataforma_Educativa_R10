@@ -64,6 +64,88 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// CONTROLADOR DEL CARTEL / MODAL DE CARGANDO DOCUMENTACIÓN
+function showLoadingModal(title, stepText, percent) {
+    const modal = document.getElementById('registro-loading-modal');
+    if (!modal) return;
+    
+    if (title) {
+        const titleEl = document.getElementById('loading-modal-title');
+        if (titleEl) titleEl.textContent = title;
+    }
+    if (stepText) {
+        const stepEl = document.getElementById('loading-modal-step');
+        if (stepEl) stepEl.textContent = stepText;
+    }
+    if (percent !== undefined) {
+        const fillEl = document.getElementById('loading-progress-bar-fill');
+        const percentEl = document.getElementById('loading-modal-percent');
+        if (fillEl) fillEl.style.width = `${percent}%`;
+        if (percentEl) percentEl.textContent = `${percent}%`;
+    }
+    
+    modal.classList.add('active');
+    
+    // Bloquear cierre accidental de ventana mientras sube
+    window.onbeforeunload = function() {
+        return "El registro y la carga de documentación están en proceso. Si sales ahora, tus datos no se guardarán.";
+    };
+}
+
+function updateLoadingProgress(stepText, percent) {
+    if (stepText) {
+        const stepEl = document.getElementById('loading-modal-step');
+        if (stepEl) stepEl.textContent = stepText;
+    }
+    if (percent !== undefined) {
+        const fillEl = document.getElementById('loading-progress-bar-fill');
+        const percentEl = document.getElementById('loading-modal-percent');
+        if (fillEl) fillEl.style.width = `${percent}%`;
+        if (percentEl) percentEl.textContent = `${percent}%`;
+    }
+}
+
+function finishLoadingModal(successTitle, successDesc) {
+    const iconEl = document.getElementById('loading-spinner-icon');
+    const ringEl = document.querySelector('.loading-spinner-ring');
+    const titleEl = document.getElementById('loading-modal-title');
+    const descEl = document.getElementById('loading-modal-desc');
+    const stepEl = document.getElementById('loading-modal-step');
+    const fillEl = document.getElementById('loading-progress-bar-fill');
+    const percentEl = document.getElementById('loading-modal-percent');
+    const alertBox = document.querySelector('.loading-main-alert');
+    const warnBox = document.querySelector('.loading-warning-box');
+
+    if (iconEl) iconEl.textContent = '✅';
+    if (ringEl) {
+        ringEl.style.borderColor = '#10b981';
+        ringEl.style.animation = 'none';
+    }
+    if (titleEl) titleEl.textContent = successTitle || '¡Registro Completado con Éxito!';
+    if (alertBox) {
+        alertBox.style.background = '#dcfce7';
+        alertBox.style.borderColor = '#86efac';
+        alertBox.style.color = '#166534';
+        alertBox.innerHTML = '<strong>¡Tu legajo y fotos de DNI han sido guardados correctamente!</strong>';
+    }
+    if (descEl) descEl.textContent = successDesc || 'Redirigiendo a la pantalla de inicio de sesión...';
+    if (stepEl) stepEl.textContent = 'Completado';
+    if (fillEl) {
+        fillEl.style.width = '100%';
+        fillEl.style.background = '#10b981';
+    }
+    if (percentEl) percentEl.textContent = '100%';
+    if (warnBox) warnBox.style.display = 'none';
+
+    window.onbeforeunload = null;
+}
+
+function hideLoadingModal() {
+    const modal = document.getElementById('registro-loading-modal');
+    if (modal) modal.classList.remove('active');
+    window.onbeforeunload = null;
+}
+
 // DISPARAR SELECTOR DE ARCHIVO
 function triggerFileInput(inputId) {
     const input = document.getElementById(inputId);
@@ -97,13 +179,13 @@ function processDniFile(file, side) {
     }
 
     if (isImage) {
-        // Comprimir imagen usando canvas para carga rápida y nítida
+        // Comprimir imagen usando canvas para carga ultra-rápida, liviana y nítida
         const reader = new FileReader();
         reader.onload = (loadEvent) => {
             const img = new Image();
             img.onload = () => {
-                // Redimensionar si es muy grande manteniendo proporción
-                const maxDim = 1600;
+                // Redimensionar manteniendo proporción (1100px genera ~70KB con nitidez óptima)
+                const maxDim = 1100;
                 let width = img.width;
                 let height = img.height;
 
@@ -123,7 +205,7 @@ function processDniFile(file, side) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
 
-                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.86);
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.74);
                 
                 // Convertir dataURL a Blob
                 fetch(compressedDataUrl)
@@ -446,10 +528,19 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
 
     const btnSubmit = document.getElementById('btn-submit');
     const originalText = btnSubmit.innerText;
-    btnSubmit.innerText = "⏳ Creando cuenta y validando...";
+    btnSubmit.innerText = "⏳ Creando cuenta...";
     btnSubmit.disabled = true;
 
+    // Abrir el cartel prominente de cargando y bloquear cierre de ventana
+    showLoadingModal(
+        'Guardando documentación y creando tu legajo...',
+        '1/4: Preparando y optimizando documentación del DNI...',
+        25
+    );
+
     try {
+        updateLoadingProgress('2/4: Creando credenciales seguras de usuario...', 50);
+
         // 1. Crear usuario en Firebase Auth o iniciar sesión si ya se creó previamente
         let uid;
         try {
@@ -469,13 +560,14 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
             }
         }
 
-        // 2. SUBIDA DE DOCUMENTOS DNI A FIREBASE STORAGE (con respaldo en data URL)
-        btnSubmit.innerText = "📤 Subiendo fotos del DNI...";
-        
-        let urlFrente = '';
-        let urlDorso = '';
+        // 2. DOCUMENTACIÓN DNI: Almacenamiento seguro, instantáneo y optimizado
+        updateLoadingProgress('3/4: Registrando fotos de DNI y legajo institucional...', 75);
 
-        if (window.storage) {
+        let urlFrente = dniPreviews.frente || '';
+        let urlDorso = dniPreviews.dorso || '';
+
+        // Si Firebase Storage está disponible y el origen no sufre de CORS no configurado
+        if (window.storage && window.location.hostname !== 'jiemes.github.io') {
             try {
                 const ts = Date.now();
                 const extFrente = dniFiles.frente.name ? dniFiles.frente.name.split('.').pop() : 'jpg';
@@ -490,13 +582,12 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
                 const snapDorso = await refDorso.put(dniFiles.dorso);
                 urlDorso = await snapDorso.ref.getDownloadURL();
             } catch (storageError) {
-                console.warn("Storage upload error, usando almacenamiento directo:", storageError);
+                console.warn("Storage upload no disponible en este entorno, utilizando almacenamiento directo optimizado.");
             }
         }
 
-        // Respaldo de seguridad en caso de que Storage falle o no esté activo
-        userData.dni_frente_url = urlFrente || dniPreviews.frente || '';
-        userData.dni_dorso_url = urlDorso || dniPreviews.dorso || '';
+        userData.dni_frente_url = urlFrente;
+        userData.dni_dorso_url = urlDorso;
 
         // Sanitizar campos undefined antes de enviar a Firestore
         Object.keys(userData).forEach(k => {
@@ -506,7 +597,7 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
         });
 
         // 3. Guardar datos en la colección 'alumnos_registro' por UID
-        btnSubmit.innerText = "💾 Guardando tu legajo...";
+        updateLoadingProgress('4/4: Confirmando legajo en el sistema institucional...', 92);
         await db.collection('alumnos_registro').doc(uid).set(userData, { merge: true });
 
         // Guardar o indexar también por DNI para que el panel administrativo y los reportes lo encuentren al instante
@@ -518,13 +609,20 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
             }
         }
 
-        showAlert('¡ÉXITO!', 'Tu cuenta ha sido creada exitosamente con la documentación correspondiente. Ahora puedes iniciar sesión y acceder a los cursos.');
-        
+        // Breve pausa para brindar retroalimentación visual fluida
+        await new Promise(r => setTimeout(r, 600));
+
+        finishLoadingModal(
+            '¡Registro Completado con Éxito!',
+            'Tus datos personales y fotografías de DNI han sido guardados correctamente en tu legajo. En breve serás redirigido a la pantalla principal.'
+        );
+
         setTimeout(() => {
             window.location.href = 'index.html';
-        }, 2500);
+        }, 2200);
 
     } catch (error) {
+        hideLoadingModal();
         console.error("Error en registro:", error);
         let msg = error.message || "Error al crear la cuenta.";
         showAlert('ATENCIÓN', msg);

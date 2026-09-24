@@ -591,3 +591,190 @@
     border: 1px solid #fca5a5;
 }
 
+/* =========================================================
+   CARTEL DE CARGANDO / PROCESANDO DOCUMENTACIÓN Y REGISTRO
+   ========================================================= */
+.loading-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    visibility: hidden;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.loading-modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+}
+
+.loading-modal-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 500px;
+    border-radius: 24px;
+    padding: 36px 30px;
+    text-align: center;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.2);
+    transform: scale(0.92) translateY(15px);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-sizing: border-box;
+}
+
+.loading-modal-overlay.active .loading-modal-card {
+    transform: scale(1) translateY(0);
+}
+
+.loading-spinner-wrapper {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-spinner-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 4px solid #e2e8f0;
+    border-top-color: #2563eb;
+    border-right-color: #38bdf8;
+    animation: spinModal 1s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+}
+
+.loading-spinner-icon {
+    font-size: 2.2rem;
+    line-height: 1;
+    animation: pulseIcon 1.5s ease-in-out infinite;
+}
+
+@keyframes spinModal {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes pulseIcon {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+
+.loading-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 14px 0;
+    line-height: 1.3;
+}
+
+.loading-main-alert {
+    background: #fef3c7;
+    border: 1.5px solid #f59e0b;
+    color: #92400e;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    margin-bottom: 14px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.1);
+}
+
+.loading-main-alert strong {
+    color: #78350f;
+    font-weight: 800;
+}
+
+.loading-desc {
+    font-size: 0.86rem;
+    color: #475569;
+    line-height: 1.5;
+    margin: 0 0 20px 0;
+}
+
+.loading-progress-box {
+    margin-bottom: 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.loading-progress-bar-bg {
+    width: 100%;
+    height: 10px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 8px;
+}
+
+.loading-progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2563eb, #38bdf8, #10b981);
+    background-size: 200% 100%;
+    border-radius: 999px;
+    transition: width 0.4s ease;
+    animation: moveGradient 2s linear infinite;
+}
+
+@keyframes moveGradient {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+}
+
+.loading-progress-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #334155;
+}
+
+#loading-modal-step {
+    color: #2563eb;
+}
+
+#loading-modal-percent {
+    color: #0f172a;
+}
+
+.loading-warning-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 10px;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 0.78rem;
+    color: #9a3412;
+    line-height: 1.4;
+}
+
+.loading-warning-box .warning-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
