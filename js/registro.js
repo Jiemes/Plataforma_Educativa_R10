@@ -43,16 +43,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Si viene email por parámetro de URL, precompletarlo ÚNICAMENTE en reg_email
+    // Si viene email o dni por parámetro de URL, precompletarlos en el formulario
     try {
         const urlParams = new URLSearchParams(window.location.search);
         const emailParam = urlParams.get('email');
+        const dniParam = urlParams.get('dni');
         if (emailParam) {
             const emailInput = document.getElementById('reg_email');
             if (emailInput) {
                 emailInput.value = emailParam;
                 const preview = document.getElementById('preview_email');
                 if (preview) preview.textContent = emailParam;
+            }
+        }
+        if (dniParam) {
+            const dniInput = document.getElementById('reg_dni');
+            if (dniInput) {
+                dniInput.value = dniParam;
+                const preview = document.getElementById('preview_dni');
+                if (preview) preview.textContent = dniParam;
             }
         }
     } catch (e) { }
@@ -553,7 +562,7 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
                     const loginCred = await firebase.auth().signInWithEmailAndPassword(email, pass1);
                     uid = loginCred.user.uid;
                 } catch (loginErr) {
-                    throw new Error("El correo ingresado ya está registrado con otra contraseña. Si ya tienes cuenta, ingresa desde la pantalla principal o recupera tu contraseña.");
+                    throw new Error("El correo ingresado ya posee una cuenta en el sistema pero la contraseña no coincide.<br><br>Si ya eras alumno en Plataforma R10 o CFP 403, ingresa con tu contraseña anterior para completar tu legajo con las fotos de tu DNI.<br><br>Si no recuerdas tu contraseña, puedes restablecerla desde la pantalla de inicio mediante '¿Olvidaste tu contraseña?' y luego regresar a completar tu registro.");
                 }
             } else {
                 throw authErr;
@@ -568,6 +577,7 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
         userData.dni_dorso_url = dniPreviews.dorso || '';
         userData.dni_documentos_completos = Boolean(userData.dni_frente_url && userData.dni_dorso_url);
         userData.dni_documentos_fecha = new Date().toISOString();
+        userData.platform_registrada = 'EDUCATIVA_R10';
 
         // Sanitizar campos undefined antes de enviar a Firestore
         Object.keys(userData).forEach(k => {

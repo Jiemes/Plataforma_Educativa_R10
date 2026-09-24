@@ -42,24 +42,41 @@ async function loadStudentsFromFirebase() {
         let coursesSnap = null;
         try {
             if (adminSession.role === 'super-admin') {
-                coursesSnap = await db.collection('cursos').where('platformId', '==', window.PLATFORM_ID).get();
-                if (coursesSnap.empty) {
-                    await db.collection('cursos').doc('habilidades').set({ nombre: "Habilidades Digitales & IA", materia: "Habilidades", activo: true, platformId: window.PLATFORM_ID });
-                    await db.collection('cursos').doc('programacion').set({ nombre: "Software & Videojuegos", materia: "Programacion", activo: true, platformId: window.PLATFORM_ID });
-                    return loadStudentsFromFirebase();
-                }
-                activeCourses = coursesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const snap = await db.collection('cursos').get();
+                activeCourses = [];
+                snap.forEach(doc => {
+                    const c = doc.data();
+                    const is2026 = window.isCourse2026(doc.id, c.nombre);
+                    if (!window.IS_PLATAFORMA_EDUCATIVA_R10) {
+                        if (is2026) return;
+                        if (c.platformId && c.platformId !== window.PLATFORM_ID) return;
+                    } else {
+                        if (!is2026 && c.platformId !== 'EDUCATIVA_R10') return;
+                    }
+                    activeCourses.push({ id: doc.id, ...c });
+                });
             } else if (adminSession.role === 'profesor' && adminSession.cursos) {
                 activeCourses = [];
                 for (let cid of adminSession.cursos) {
                     const cDoc = await db.collection('cursos').doc(cid).get();
-                    if (cDoc.exists) activeCourses.push({ id: cDoc.id, ...cDoc.data() });
+                    if (cDoc.exists) {
+                        const cData = cDoc.data();
+                        const is2026 = window.isCourse2026(cDoc.id, cData.nombre);
+                        if (!window.IS_PLATAFORMA_EDUCATIVA_R10) {
+                            if (is2026) continue;
+                        } else {
+                            if (!is2026 && cData.platformId !== 'EDUCATIVA_R10') continue;
+                        }
+                        activeCourses.push({ id: cDoc.id, ...cData });
+                    }
                 }
             }
         } catch (e) {
             console.error("Error al cargar cursos:", e);
             if (adminSession.role === 'profesor' && adminSession.cursos) {
-                activeCourses = adminSession.cursos.map(id => ({ id: id, nombre: id === 'habilidades' ? "Habilidades Digitales & IA" : "Software & Videojuegos", activo: true }));
+                activeCourses = adminSession.cursos
+                    .filter(id => window.IS_PLATAFORMA_EDUCATIVA_R10 ? window.isCourse2026(id) : !window.isCourse2026(id))
+                    .map(id => ({ id: id, nombre: id, activo: true }));
             }
         }
 
@@ -2067,9 +2084,16 @@ function openCreateUserModal() {
     
     const chkBoxDiv = document.getElementById('adm-cursos-checkboxes');
     chkBoxDiv.innerHTML = '';
-    db.collection('cursos').where('platformId', '==', window.PLATFORM_ID).get().then(snap => {
+    db.collection('cursos').get().then(snap => {
         snap.forEach(doc => {
             const course = doc.data();
+            const is2026 = window.isCourse2026(doc.id, course.nombre);
+            if (!window.IS_PLATAFORMA_EDUCATIVA_R10) {
+                if (is2026) return;
+                if (course.platformId && course.platformId !== window.PLATFORM_ID) return;
+            } else {
+                if (!is2026 && course.platformId !== 'EDUCATIVA_R10') return;
+            }
             const div = document.createElement('div');
             div.innerHTML = `<label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" value="${doc.id}" class="adm-curso-chk"> <span style="font-weight:600; font-size:0.9rem;">${course.nombre}</span> <small style="color:#64748b;">(${doc.id})</small></label>`;
             chkBoxDiv.appendChild(div);
@@ -2093,9 +2117,16 @@ function editUser(email) {
             
             const chkBoxDiv = document.getElementById('adm-cursos-checkboxes');
             chkBoxDiv.innerHTML = '';
-            db.collection('cursos').where('platformId', '==', window.PLATFORM_ID).get().then(snap => {
+            db.collection('cursos').get().then(snap => {
                 snap.forEach(cdoc => {
                     const course = cdoc.data();
+                    const is2026 = window.isCourse2026(cdoc.id, course.nombre);
+                    if (!window.IS_PLATAFORMA_EDUCATIVA_R10) {
+                        if (is2026) return;
+                        if (course.platformId && course.platformId !== window.PLATFORM_ID) return;
+                    } else {
+                        if (!is2026 && course.platformId !== 'EDUCATIVA_R10') return;
+                    }
                     const isChecked = u.cursos === 'all' || (Array.isArray(u.cursos) && u.cursos.includes(cdoc.id)) ? 'checked' : '';
                     const div = document.createElement('div');
                     div.innerHTML = `<label style="display:flex; align-items:center; gap:8px; cursor:pointer;"><input type="checkbox" value="${cdoc.id}" class="adm-curso-chk" ${isChecked}> <span style="font-weight:600; font-size:0.9rem;">${course.nombre}</span> <small style="color:#64748b;">(${cdoc.id})</small></label>`;
@@ -2187,10 +2218,18 @@ async function loadCoursesManager() {
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando estructura académica...</td></tr>';
     try {
-        const snap = await db.collection('cursos').where('platformId', '==', window.PLATFORM_ID).get();
+        const snap = await db.collection('cursos').get();
         tbody.innerHTML = '';
         snap.forEach(doc => {
             const c = doc.data();
+            const is2026 = window.isCourse2026(doc.id, c.nombre);
+            if (!window.IS_PLATAFORMA_EDUCATIVA_R10) {
+                if (is2026) return;
+                if (c.platformId && c.platformId !== window.PLATFORM_ID) return;
+            } else {
+                if (!is2026 && c.platformId !== 'EDUCATIVA_R10') return;
+            }
+
             const isOpen = c.inscripcion_abierta || false;
             const safeCourseTitle = String(c.nombre || doc.id).replace(/'/g, "\\'").replace(/"/g, '&quot;');
 

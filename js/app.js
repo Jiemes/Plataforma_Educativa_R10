@@ -95,11 +95,30 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
                 }
             } catch (e) { }
 
-            // CASO B: Alumno nuevo
+            // CASO B: Alumno nuevo o sin cuenta Auth creada
+            if (window.IS_PLATAFORMA_EDUCATIVA_R10) {
+                // En Plataforma Educativa R10 es obligatorio haber completado el registro institucional con fotos de DNI
+                throw new Error(
+                    `<div style="text-align:left; line-height:1.45;">` +
+                    `<h3 style="color:#0284c7; margin:0 0 10px 0; font-size:1.15rem; font-weight:800; display:flex; align-items:center; gap:8px;">` +
+                    `<span>🆔</span> REGISTRO OBLIGATORIO - CICLO 2026</h3>` +
+                    `<p style="font-size:0.92rem; color:#334155; margin-bottom:12px;">` +
+                    `No se encontró un usuario activo con esas credenciales. Para acceder a la <strong>Plataforma Educativa R10</strong>, todos los estudiantes deben completar su registro obligatorio con las fotos del DNI (frente y dorso).` +
+                    `</p>` +
+                    `<div style="text-align:center; margin-top:14px;">` +
+                    `<a href="registro.html?email=${encodeURIComponent(email)}&dni=${encodeURIComponent(cleanDni || '')}" ` +
+                    `style="display:inline-block; padding:12px 24px; background:linear-gradient(135deg, #00b9e8, #0284c7); color:white; border-radius:10px; text-decoration:none; font-weight:800; font-size:0.95rem; box-shadow:0 4px 14px rgba(2,132,199,0.35);">` +
+                    `CREAR MI CUENTA CON FOTOS DE DNI ➔</a>` +
+                    `</div>` +
+                    `</div>`
+                );
+            }
+
+            // Fallback para plataformas legacy (Plataforma R10 antigua y CFP 403)
             let info_alumno = null;
             let currentCourses = ['habilidades', 'programacion'];
             try {
-                const coursesSnap = await db.collection('cursos').where('platformId', '==', PLATFORM_ID).get();
+                const coursesSnap = await db.collection('cursos').where('platformId', '==', window.PLATFORM_ID).get();
                 if (!coursesSnap.empty) currentCourses = coursesSnap.docs.map(d => d.id);
             } catch (e) { }
 
@@ -108,7 +127,6 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
                     const snapCheck = await db.collection(`alumnos_${cid}`).doc(cleanDni).get();
                     if (snapCheck.exists) { 
                         const dataRead = snapCheck.data();
-                        // Comparamos mail permitiendo variaciones de mayúsculas en DB
                         if (String(dataRead.email || "").toLowerCase() === email) {
                              info_alumno = dataRead; break; 
                         }
@@ -135,15 +153,25 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
         let info_final = null;
         let coursesDocs = [];
         try {
-            const coursesList = await db.collection('cursos').where('platformId', '==', PLATFORM_ID).get();
-            coursesDocs = coursesList.docs.map(d => ({ id: d.id, nombre: d.data().nombre }));
+            const coursesList = await db.collection('cursos').get();
+            coursesDocs = coursesList.docs
+                .map(d => ({ id: d.id, nombre: d.data().nombre, platformId: d.data().platformId }))
+                .filter(d => {
+                    const is2026 = window.isCourse2026(d.id, d.nombre);
+                    if (!window.IS_PLATAFORMA_EDUCATIVA_R10) {
+                        // En plataformas antiguas: NUNCA mostrar ni cargar cursos 2026
+                        return !is2026 && (d.platformId === window.PLATFORM_ID);
+                    } else {
+                        // En Plataforma Educativa R10: cargar cursos 2026
+                        return is2026;
+                    }
+                });
         } catch (e) {
-            coursesDocs = [ { id: 'habilidades', nombre: 'Habilidades Digitales' }, { id: 'programacion', nombre: 'Software & Videojuegos' } ];
+            coursesDocs = [];
         }
 
         for (let doc of coursesDocs) {
             try {
-                // Probamos variaciones de casing en el email para mayor robustez
                 const qSnapLower = await db.collection(`alumnos_${doc.id}`).where('email', '==', email).get();
                 const qSnapRaw = qSnapLower.empty ? await db.collection(`alumnos_${doc.id}`).where('email', '==', rawEmailTyped).get() : qSnapLower;
                 
@@ -152,7 +180,6 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
                     if (!info_final) info_final = aluData;
                     cursos_inscrito.push({ id: doc.id, nombre: doc.nombre });
                 } else if (cleanDni.length >= 7 && cleanDni.length <= 11) {
-                    // Fallback por DNI si la clave parece un documento
                     const aluDoc = await db.collection(`alumnos_${doc.id}`).doc(cleanDni).get();
                     if (aluDoc.exists && String(aluDoc.data().email || "").toLowerCase() === email) {
                         if (!info_final) info_final = aluDoc.data();
@@ -162,40 +189,80 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
             } catch (e) { }
         }
 
-        // Si no está en ningún curso específico, buscar en la base central de 'alumnos_registro' (Nuevos registros)
-        if (!info_final) {
-            try {
-                // 1. Buscar por email en minúsculas
+        // Buscar en la base central de 'alumnos_registro'
+        try {
+            // 1. Buscar por UID en Firebase Auth
+            if (authFirebase.currentUser) {
+                const uidDoc = await db.collection('alumnos_registro').doc(authFirebase.currentUser.uid).get();
+                if (uidDoc.exists) {
+                    info_final = uidDoc.data();
+                }
+            }
+            // 2. Buscar por DNI
+            if (!info_final && cleanDni.length >= 7) {
+                const dniDoc = await db.collection('alumnos_registro').doc(cleanDni).get();
+                if (dniDoc.exists) {
+                    info_final = dniDoc.data();
+                }
+            }
+            // 3. Buscar por email
+            if (!info_final) {
                 let userDoc = await db.collection('alumnos_registro').where('email', '==', email).get();
-                // 2. Buscar por email tal como fue escrito o en mayúsculas
                 if (userDoc.empty && rawEmailTyped && rawEmailTyped !== email) {
                     userDoc = await db.collection('alumnos_registro').where('email', '==', rawEmailTyped).get();
                 }
                 if (userDoc.empty) {
                     userDoc = await db.collection('alumnos_registro').where('email', '==', email.toUpperCase()).get();
                 }
-                // 3. Buscar por DNI
-                if (userDoc.empty && cleanDni.length >= 7) {
-                    userDoc = await db.collection('alumnos_registro').where('dni', '==', cleanDni).get();
-                }
-                // 4. Buscar por UID en Firebase Auth
-                if (userDoc.empty && authFirebase.currentUser) {
-                    const uidDoc = await db.collection('alumnos_registro').doc(authFirebase.currentUser.uid).get();
-                    if (uidDoc.exists) {
-                        info_final = uidDoc.data();
-                    }
-                }
-
-                if (!info_final && !userDoc.empty) {
+                if (!userDoc.empty) {
                     info_final = userDoc.docs[0].data();
                 }
-            } catch (e) {
-                console.error("Error buscando en alumnos_registro:", e);
+            }
+        } catch (e) {
+            console.error("Error buscando en alumnos_registro:", e);
+        }
+
+        // =========================================================================
+        // REGLA CRÍTICA PARA PLATAFORMA EDUCATIVA R10:
+        // Todos los alumnos (incluyendo los que ya tenían cuenta en Plataforma R10
+        // o CFP 403) DEBEN tener completo su legajo institucional con las fotos de DNI.
+        // =========================================================================
+        if (window.IS_PLATAFORMA_EDUCATIVA_R10) {
+            const hasDniDocs = Boolean(
+                info_final && 
+                (info_final.dni_documentos_completos === true || 
+                 (info_final.dni_frente_url && info_final.dni_dorso_url))
+            );
+
+            if (!hasDniDocs) {
+                // Desautenticar de Firebase Auth para que no quede logueado sin legajo
+                try { await authFirebase.signOut(); } catch (e) {}
+                localStorage.removeItem('user_session');
+
+                const dniParam = (cleanDni && cleanDni.length >= 7) ? cleanDni : ((info_final && info_final.dni) ? info_final.dni : '');
+
+                throw new Error(
+                    `<div style="text-align:left; line-height:1.45;">` +
+                    `<h3 style="color:#0284c7; margin:0 0 10px 0; font-size:1.15rem; font-weight:800; display:flex; align-items:center; gap:8px;">` +
+                    `<span>🆔</span> REGISTRO OBLIGATORIO - CICLO 2026</h3>` +
+                    `<p style="font-size:0.92rem; color:#334155; margin-bottom:12px;">` +
+                    `Para ingresar a la <strong>Plataforma Educativa R10</strong>, todos los estudiantes deben completar su registro institucional adjuntando la documentación requerida (<strong>Fotos de frente y dorso de su DNI</strong>).` +
+                    `</p>` +
+                    `<p style="font-size:0.86rem; color:#64748b; margin-bottom:18px; background:#f1f5f9; padding:10px; border-radius:8px; border-left:4px solid #00b9e8;">` +
+                    `Si ya eras usuario de <em>Plataforma R10</em> o <em>CFP 403</em>, debes completar este registro para validar tus datos e inscribirte a los cursos 2026.` +
+                    `</p>` +
+                    `<div style="text-align:center;">` +
+                    `<a href="registro.html?email=${encodeURIComponent(email)}&dni=${encodeURIComponent(dniParam)}" ` +
+                    `style="display:inline-block; padding:12px 24px; background:linear-gradient(135deg, #00b9e8, #0284c7); color:white; border-radius:10px; text-decoration:none; font-weight:800; font-size:0.95rem; box-shadow:0 4px 14px rgba(2,132,199,0.35);">` +
+                    `COMPLETAR MI REGISTRO CON DNI ➔</a>` +
+                    `</div>` +
+                    `</div>`
+                );
             }
         }
 
-        // Si autenticó con éxito en Firebase Auth pero no tenía ficha previa, crearle ficha automática para nunca bloquear el acceso
-        if (!info_final && authFirebase.currentUser) {
+        // En plataformas antiguas: si autenticó con éxito pero no tenía ficha previa, crearle ficha automática para nunca bloquear
+        if (!window.IS_PLATAFORMA_EDUCATIVA_R10 && !info_final && authFirebase.currentUser) {
             const fallbackName = (authFirebase.currentUser.displayName || email.split('@')[0]).toUpperCase();
             const fallbackDni = (cleanDni && cleanDni.length >= 7) ? cleanDni : authFirebase.currentUser.uid.substring(0, 10).toUpperCase();
             info_final = {

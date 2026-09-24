@@ -82,6 +82,53 @@ function getCourseIcon(courseName) {
 }
 
 async function initStudentDashboard() {
+    // Verificación obligatoria de registro institucional y fotos de DNI en Plataforma Educativa R10
+    if (window.IS_PLATAFORMA_EDUCATIVA_R10) {
+        try {
+            let hasDniDocs = false;
+            // 1. Consultar por UID si está autenticado en Firebase Auth
+            if (firebase.auth().currentUser) {
+                const uDoc = await db.collection('alumnos_registro').doc(firebase.auth().currentUser.uid).get();
+                if (uDoc.exists) {
+                    const uData = uDoc.data();
+                    if (uData.dni_documentos_completos === true || (uData.dni_frente_url && uData.dni_dorso_url)) {
+                        hasDniDocs = true;
+                    }
+                }
+            }
+            // 2. Consultar por DNI
+            if (!hasDniDocs && studentSession && studentSession.dni) {
+                const dDoc = await db.collection('alumnos_registro').doc(studentSession.dni).get();
+                if (dDoc.exists) {
+                    const dData = dDoc.data();
+                    if (dData.dni_documentos_completos === true || (dData.dni_frente_url && dData.dni_dorso_url)) {
+                        hasDniDocs = true;
+                    }
+                }
+            }
+            // 3. Consultar por Email
+            if (!hasDniDocs && studentSession && studentSession.email) {
+                const mSnap = await db.collection('alumnos_registro').where('email', '==', String(studentSession.email).toLowerCase()).get();
+                if (!mSnap.empty) {
+                    const mData = mSnap.docs[0].data();
+                    if (mData.dni_documentos_completos === true || (mData.dni_frente_url && mData.dni_dorso_url)) {
+                        hasDniDocs = true;
+                    }
+                }
+            }
+
+            if (!hasDniDocs) {
+                localStorage.removeItem('user_session');
+                try { await firebase.auth().signOut(); } catch(e){}
+                alert("⚠️ REGISTRO OBLIGATORIO - CICLO 2026:\n\nPara acceder a la Plataforma Educativa R10 es obligatorio completar tu legajo con las fotografías de tu DNI (frente y dorso).");
+                window.location.href = `registro.html?email=${encodeURIComponent((studentSession && studentSession.email) || '')}&dni=${encodeURIComponent((studentSession && studentSession.dni) || '')}`;
+                return;
+            }
+        } catch (err) {
+            console.warn("Aviso verificando documentación institucional de alumno:", err);
+        }
+    }
+
     const homeName = document.getElementById('home-student-name');
     if (homeName) {
         const nombre = studentSession.nombre.split(',')[1] || studentSession.nombre.split(' ')[0];
@@ -111,6 +158,11 @@ async function initStudentDashboard() {
     
     if (studentSession.cursos && studentSession.cursos.length > 0) {
         studentSession.cursos.forEach(curso => {
+            // En plataformas antiguas (Plataforma R10 o CFP 403), NUNCA mostrar cursos 2026
+            if (!window.IS_PLATAFORMA_EDUCATIVA_R10 && window.isCourse2026(curso.id, curso.nombre)) {
+                return;
+            }
+
             const entregasCurso = todasLasEntregas.filter(e => e.curso === curso.id);
             const total = entregasCurso.reduce((sum, e) => sum + parseFloat(e.nota || 0), 0);
             const prom = entregasCurso.length > 0 ? (total / entregasCurso.length).toFixed(1) : '---';
@@ -181,7 +233,6 @@ async function loadAvailableCourses() {
     
     try {
         const snap = await db.collection('cursos')
-            .where('platformId', '==', window.PLATFORM_ID || 'r10')
             .where('inscripcion_abierta', '==', true)
             .get();
             
@@ -194,7 +245,18 @@ async function loadAvailableCourses() {
         let count = 0;
         snap.forEach(doc => {
             const c = doc.data();
+            const is2026 = window.isCourse2026(doc.id, c.nombre);
             
+            // Regla de aislamiento de plataformas:
+            // 1. En plataformas que NO sean Plataforma Educativa R10, NUNCA mostrar cursos 2026
+            if (!window.IS_PLATAFORMA_EDUCATIVA_R10) {
+                if (is2026) return;
+                if (c.platformId && c.platformId !== window.PLATFORM_ID) return;
+            } else {
+                // 2. En Plataforma Educativa R10, mostrar exclusivamente los cursos 2026
+                if (!is2026) return;
+            }
+
             // Si el alumno ya está anotado en este curso, no lo mostramos en la vidriera
             if (studentSession.cursos && studentSession.cursos.find(sc => sc.id === doc.id)) return;
             
