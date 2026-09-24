@@ -33,19 +33,19 @@
                 <div class="step" id="step-ind-5">5</div>
             </div>
 
-            <form id="registro-form">
+            <form id="registro-form" autocomplete="off">
                 
                 <!-- PASO 1: Datos Personales -->
                 <div class="step-content active" id="step-1">
                     <h3>Paso 1: Datos Personales</h3>
                     <div class="form-grid">
-                        <div class="form-group"><label>Nombres *</label><input type="text" id="reg_nombres" required></div>
-                        <div class="form-group"><label>Apellidos *</label><input type="text" id="reg_apellidos" required></div>
-                        <div class="form-group"><label>Documento (DNI) *</label><input type="number" id="reg_dni" required></div>
-                        <div class="form-group"><label>CUIL *</label><input type="text" id="reg_cuil" required></div>
-                        <div class="form-group"><label>Fecha de Nacimiento *</label><input type="date" id="reg_nacimiento" required></div>
-                        <div class="form-group"><label>Lugar de Nacimiento</label><input type="text" id="reg_lugar_nac"></div>
-                        <div class="form-group"><label>Nacionalidad</label><input type="text" id="reg_nacionalidad"></div>
+                        <div class="form-group"><label>Nombres *</label><input type="text" id="reg_nombres" autocomplete="off" required></div>
+                        <div class="form-group"><label>Apellidos *</label><input type="text" id="reg_apellidos" autocomplete="off" required></div>
+                        <div class="form-group"><label>Documento (DNI) *</label><input type="number" id="reg_dni" autocomplete="off" required></div>
+                        <div class="form-group"><label>CUIL *</label><input type="text" id="reg_cuil" autocomplete="off" required></div>
+                        <div class="form-group"><label>Fecha de Nacimiento *</label><input type="date" id="reg_nacimiento" autocomplete="off" required></div>
+                        <div class="form-group"><label>Lugar de Nacimiento</label><input type="text" id="reg_lugar_nac" autocomplete="off"></div>
+                        <div class="form-group"><label>Nacionalidad</label><input type="text" id="reg_nacionalidad" autocomplete="off"></div>
                         <div class="form-group">
                             <label>Sexo biológico</label>
                             <select id="reg_sexo">
@@ -59,12 +59,21 @@
                             <label>Identidad de género</label>
                             <select id="reg_identidad">
                                 <option value="">Seleccionar...</option>
-                                <option value="Masculino">Masculino</option>
-                                <option value="Femenino">Femenino</option>
+                                <option value="Masculino">Masculino / Varón cis</option>
+                                <option value="Femenino">Femenino / Mujer cis</option>
                                 <option value="X">X (No binario)</option>
+                                <option value="Varón trans">Varón trans / Transmasculino</option>
+                                <option value="Mujer trans">Mujer trans / Travesti</option>
+                                <option value="Género fluido">Género fluido</option>
+                                <option value="Agénero">Agénero</option>
+                                <option value="Queer">Queer</option>
+                                <option value="Intergénero">Intergénero</option>
+                                <option value="Demigénero">Demigénero</option>
+                                <option value="Prefiero no responder">Prefiero no responder</option>
+                                <option value="Otro">Otro / Otra</option>
                             </select>
                         </div>
-                        <div class="form-group"><label>Sobrenombre (Opcional)</label><input type="text" id="reg_sobrenombre"></div>
+                        <div class="form-group"><label>Sobrenombre (Opcional)</label><input type="text" id="reg_sobrenombre" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></div>
                     </div>
                 </div>
 
@@ -341,6 +350,6 @@
 
     <!-- Scripts -->
     <script src="js/firebase-config.js?v=9.19.0"></script>
-    <script src="js/registro.js?v=9.19.1"></script>
+    <script src="js/registro.js?v=9.19.3"></script>
 </body>
 </html>

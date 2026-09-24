@@ -12,12 +12,38 @@ const dniPreviews = {
     dorso: null
 };
 
+// Prevenir que el navegador autocomplete campos de texto (como Sobrenombre, Nombres, etc.) con el email del usuario
+function cleanAccidentalAutofill() {
+    const inputs = document.querySelectorAll('#registro-form input:not(#reg_email)');
+    inputs.forEach(el => {
+        if (el.value && typeof el.value === 'string' && el.value.includes('@')) {
+            el.value = '';
+        }
+    });
+}
+
 // Inicializa el primer paso y listeners
 document.addEventListener('DOMContentLoaded', () => {
     updateUI();
     initDniDropzones();
+    cleanAccidentalAutofill();
+    setTimeout(cleanAccidentalAutofill, 300);
+    setTimeout(cleanAccidentalAutofill, 800);
+    setTimeout(cleanAccidentalAutofill, 1500);
+
+    // Escuchar cambios indebidos en todos los campos que no sean email
+    document.querySelectorAll('#registro-form input:not(#reg_email)').forEach(input => {
+        input.addEventListener('change', () => {
+            if (input.value && input.value.includes('@')) input.value = '';
+        });
+        input.addEventListener('input', () => {
+            if (input.value && input.value.includes('@') && input.id !== 'reg_email') {
+                input.value = '';
+            }
+        });
+    });
     
-    // Si viene email por parámetro de URL, precompletarlo
+    // Si viene email por parámetro de URL, precompletarlo ÚNICAMENTE en reg_email
     try {
         const urlParams = new URLSearchParams(window.location.search);
         const emailParam = urlParams.get('email');
