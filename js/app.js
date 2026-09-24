@@ -328,7 +328,9 @@ window.showLoginView = function() {
     const login = document.getElementById('login-view');
     if (welcome && login) {
         welcome.classList.add('hidden');
+        welcome.style.display = 'none';
         login.classList.remove('hidden');
+        login.style.display = 'block';
         setTimeout(() => {
             document.getElementById('email')?.focus();
         }, 120);
@@ -340,7 +342,9 @@ window.showWelcomeView = function() {
     const login = document.getElementById('login-view');
     if (welcome && login) {
         login.classList.add('hidden');
+        login.style.display = 'none';
         welcome.classList.remove('hidden');
+        welcome.style.display = 'block';
     }
 };
 
