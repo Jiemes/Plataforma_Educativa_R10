@@ -7,7 +7,7 @@
     <title>Panel Administrativo | Plataforma Educativa de Formación Profesional</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css?v=9.18.9">
-    <link rel="stylesheet" href="css/admin.css?v=9.18.10">
+    <link rel="stylesheet" href="css/admin.css?v=9.18.11">
     <style>
         .correction-container {
             display: grid;
@@ -228,21 +228,18 @@
             <!-- SECCIÓN: LISTADO DE ALUMNOS (Por Curso) -->
             <section id="table-section" class="section hidden">
                 <div class="card">
-                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                        <h3 id="current-course-title">Listado de Alumnos</h3>
-                        <div class="table-actions-top" style="display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="btn-primary-sm" onclick="printCourseRoster()"
-                                style="background:#0284c7; border-color:#0284c7; color:white; display:inline-flex; align-items:center; gap:5px;" title="Imprimir planilla oficial de alumnos del curso">
+                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
+                        <h3 id="current-course-title" style="margin:0; font-size:1.45rem; font-weight:900; color:#0f172a; letter-spacing:-0.02em;">Listado de Alumnos</h3>
+                        <div class="table-actions-top" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                            <button class="btn-course-action btn-action-print" onclick="printCourseRoster()" title="Imprimir planilla oficial de alumnos del curso">
                                 🖨️ Imprimir Planilla
                             </button>
-                            <button class="btn-primary-sm" onclick="downloadCourseExcel()"
-                                style="background:#10b981; border-color:#10b981; color:white; display:inline-flex; align-items:center; gap:5px;" title="Descargar planilla completa en formato Excel">
+                            <button class="btn-course-action btn-action-download" onclick="downloadCourseExcel()" title="Descargar planilla completa en formato Excel (.xlsx)">
                                 📥 Descargar Listado (.xlsx)
                             </button>
-                            <button class="btn-primary-sm" onclick="openStudentModal()">👤 Agregar Alumno</button>
-                            <button class="btn-secondary" onclick="resetDeliveriesOnly()"
-                                style="border:1px solid #cbd5e1;">🔄 Reiniciar Entregas</button>
-                            <button class="btn-danger-outline" onclick="deleteCourseData()">Vaciar Lista</button>
+                            <button class="btn-course-action btn-action-add" onclick="openStudentModal()" title="Agregar nuevo alumno al curso">
+                                👤 Agregar Alumno
+                            </button>
                         </div>
                     </div>
                     <div class="table-container">

@@ -471,6 +471,70 @@ td {
     }
 }
 
+/* BOTONES DE ACCIÓN SUPERIOR EN VISTAS DE CURSO (Grandes y Armoniosos) */
+.btn-course-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    border: none;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.btn-course-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px -2px rgba(0, 0, 0, 0.16);
+}
+
+.btn-course-action:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 1. Imprimir Planilla (Azul institucional vivo) */
+.btn-action-print {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    border: 1px solid #0284c7;
+}
+
+.btn-action-print:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+    box-shadow: 0 8px 18px -2px rgba(2, 132, 199, 0.4);
+}
+
+/* 2. Descargar Listado Excel (Verde esmeralda elegante) */
+.btn-action-download {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    border: 1px solid #059669;
+}
+
+.btn-action-download:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    box-shadow: 0 8px 18px -2px rgba(16, 185, 129, 0.4);
+}
+
+/* 3. Agregar Alumno (Indigo moderno institucional) */
+.btn-action-add {
+    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+    color: #ffffff;
+    border: 1px solid #4338ca;
+}
+
+.btn-action-add:hover {
+    background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+    box-shadow: 0 8px 18px -2px rgba(79, 70, 229, 0.4);
+}
+
 /* BOTONES DE ESTADO DNI EN TABLA DE ALUMNOS */
 .btn-badge-dni {
     display: inline-flex;
