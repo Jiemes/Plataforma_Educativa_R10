@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=9.19.27">
+    <link rel="stylesheet" href="css/style.css?v=9.19.28">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -65,13 +65,15 @@
                     </div>
                 </div>
 
-                <button type="button" class="btn-welcome-login" onclick="showLoginView()">
-                    <span>🔑</span> INGRESAR AL SISTEMA
-                </button>
+                <div class="welcome-actions-group">
+                    <button type="button" class="btn-welcome-login" onclick="showLoginView()">
+                        <span>🔑</span> INGRESAR AL SISTEMA
+                    </button>
 
-                <a href="registro.html" class="btn-welcome-registro">
-                    <span>📝</span> CREAR CUENTA NUEVA
-                </a>
+                    <a href="registro.html" class="btn-welcome-registro">
+                        <span>📝</span> CREAR CUENTA NUEVA
+                    </a>
+                </div>
             </div>
 
             <!-- PANEL 2: FORMULARIO DE ACCESO -->
