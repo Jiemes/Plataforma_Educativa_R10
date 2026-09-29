@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Administrativo | Plataforma Educativa de Formación Profesional</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=9.18.9">
-    <link rel="stylesheet" href="css/admin.css?v=9.18.11">
+    <link rel="stylesheet" href="css/style.css?v=9.19.11">
+    <link rel="stylesheet" href="css/admin.css?v=9.19.11">
     <style>
         .correction-container {
             display: grid;
@@ -566,6 +566,31 @@
         </div>
     </div>
 
+    <!-- MODAL VISOR DE ENLACE / DOCUMENTO PREVIO -->
+    <div id="preview-doc-modal" class="modal hidden" style="z-index: 3000;" onclick="if(event.target === this) closePreviewDocModal()">
+        <div class="modal-content enroll-doc-modal-content">
+            <div class="enroll-doc-header">
+                <div class="doc-header-info">
+                    <span id="preview-doc-badge" class="doc-badge">VISTA PREVIA DEL ENLACE</span>
+                    <h3 id="preview-doc-title">Vista de Documento</h3>
+                </div>
+                <div class="doc-header-actions">
+                    <a id="preview-doc-external-link" href="#" target="_blank" class="btn-doc-external" title="Abrir en pestaña nueva">
+                        🔗 Abrir en pestaña nueva
+                    </a>
+                    <button class="btn-close-modal-round" onclick="closePreviewDocModal()" title="Cerrar">✕</button>
+                </div>
+            </div>
+            <div class="enroll-doc-body">
+                <div id="preview-doc-loader" class="enroll-doc-loader">
+                    <div class="spinner-premium"></div>
+                    <p>Cargando documento...</p>
+                </div>
+                <iframe id="preview-doc-iframe" src="about:blank" frameborder="0"></iframe>
+            </div>
+        </div>
+    </div>
+
     <!-- ALERT MODAL PERSONALIZADO -->
     <div id="cfp-alert" class="alert-modal-overlay">
         <div class="alert-modal-content">
@@ -576,8 +601,8 @@
         </div>
     </div>
 
-    <script src="js/firebase-config.js?v=9.19.10"></script>
-    <script src="js/admin_v11.js?v=9.19.10"></script>
+    <script src="js/firebase-config.js?v=9.19.11"></script>
+    <script src="js/admin_v11.js?v=9.19.11"></script>
 </body>
 
 </html>

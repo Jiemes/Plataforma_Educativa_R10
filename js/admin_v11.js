@@ -1561,12 +1561,18 @@ async function loadClaseConfig(courseId) {
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                     <div>
-                        <label>📖 Link Clase</label>
-                        <input type="text" id="link-clase-${i}" value="${mat.clase || ''}" class="input-premium" style="width:100%;">
+                        <label style="font-size:0.75rem; font-weight:700; color:#334155; margin-bottom:5px; display:block;">📖 Link Clase</label>
+                        <div class="input-with-button">
+                            <input type="text" id="link-clase-${i}" value="${mat.clase || ''}" placeholder="URL o Link Drive..." class="input-premium">
+                            <button type="button" class="btn-preview-link" onclick="previewAdminLink('link-clase-${i}', 'Clase ${i} - Material de Estudio')" title="Visualizar enlace">👁️ Ver</button>
+                        </div>
                     </div>
                     <div>
-                        <label>🛠️ Link Actividad</label>
-                        <input type="text" id="link-act-${i}" value="${mat.actividad || ''}" class="input-premium" style="width:100%;">
+                        <label style="font-size:0.75rem; font-weight:700; color:#334155; margin-bottom:5px; display:block;">🛠️ Link Actividad</label>
+                        <div class="input-with-button">
+                            <input type="text" id="link-act-${i}" value="${mat.actividad || ''}" placeholder="URL o Link Drive..." class="input-premium">
+                            <button type="button" class="btn-preview-link" onclick="previewAdminLink('link-act-${i}', 'Clase ${i} - Consigna Actividad')" title="Visualizar enlace">👁️ Ver</button>
+                        </div>
                     </div>
                 </div>
                 <button class="btn-primary" onclick="saveLinksManual(${i})" style="margin-top:15px; width:100%;">💾 GUARDAR CLASE ${i}</button>
@@ -1585,11 +1591,17 @@ async function loadClaseConfig(courseId) {
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:15px;">
                 <div>
                     <label style="font-size:0.75rem; font-weight:700; color:#334155; margin-bottom:5px; display:block;">👋 Mensaje de Bienvenida (Video/Doc)</label>
-                    <input type="text" id="link-welcome" value="${matInicio.welcome || ''}" placeholder="URL Bienvenida" class="input-premium" style="width:100%;">
+                    <div class="input-with-button">
+                        <input type="text" id="link-welcome" value="${matInicio.welcome || ''}" placeholder="URL Bienvenida" class="input-premium">
+                        <button type="button" class="btn-preview-link" onclick="previewAdminLink('link-welcome', 'Mensaje de Bienvenida')" title="Visualizar enlace">👁️ Ver</button>
+                    </div>
                 </div>
                 <div>
                     <label style="font-size:0.75rem; font-weight:700; color:#334155; margin-bottom:5px; display:block;">📋 Programa del Curso (Contenidos)</label>
-                    <input type="text" id="link-syllabus" value="${matInicio.syllabus || ''}" placeholder="URL Programa" class="input-premium" style="width:100%;">
+                    <div class="input-with-button">
+                        <input type="text" id="link-syllabus" value="${matInicio.syllabus || ''}" placeholder="URL Programa" class="input-premium">
+                        <button type="button" class="btn-preview-link" onclick="previewAdminLink('link-syllabus', 'Programa del Curso')" title="Visualizar enlace">👁️ Ver</button>
+                    </div>
                 </div>
             </div>
             <button class="btn-primary" onclick="saveInicioManual()" style="margin-top:15px; width:100%; background:#10b981;">💾 GUARDAR INICIO</button>
@@ -1644,6 +1656,83 @@ async function deleteWeek(num) {
         loadClaseConfig(currentClaseTab);
     } catch (e) { }
 }
+
+// VISUALIZACIÓN RÁPIDA DE ENLACES (ADMIN)
+function previewAdminLink(inputId, label) {
+    const input = document.getElementById(inputId);
+    const url = input ? input.value.trim() : '';
+    if (!url) {
+        return cfpAlert("AVISO", `Por favor ingresa o pega un enlace en "${label}" para poder visualizarlo.`);
+    }
+    openPreviewDocModal(url, label);
+}
+
+function openPreviewDocModal(url, title) {
+    const modal = document.getElementById('preview-doc-modal');
+    const iframe = document.getElementById('preview-doc-iframe');
+    const titleEl = document.getElementById('preview-doc-title');
+    const extLink = document.getElementById('preview-doc-external-link');
+    const loader = document.getElementById('preview-doc-loader');
+
+    if (!modal || !iframe) return;
+
+    let cleanUrl = (url || '').trim();
+    if (!cleanUrl) {
+        return cfpAlert("AVISO", "Por favor ingresa o pega un enlace primero para visualizarlo.");
+    }
+
+    if (!/^https?:\/\//i.test(cleanUrl)) {
+        cleanUrl = 'https://' + cleanUrl;
+    }
+
+    if (titleEl) titleEl.innerText = title || "Vista Previa del Enlace";
+    if (extLink) extLink.href = cleanUrl;
+
+    let finalUrl = cleanUrl;
+    if (cleanUrl.includes('drive.google.com')) {
+        const idMatch = cleanUrl.match(/\/d\/(.+?)(\/|$)/) || cleanUrl.match(/id=(.+?)(&|$)/);
+        if (idMatch) {
+            finalUrl = `https://drive.google.com/file/d/${idMatch[1]}/preview?view=fitH`;
+        }
+    } else if (cleanUrl.includes('docs.google.com')) {
+        if (!cleanUrl.includes('/preview')) {
+            finalUrl = cleanUrl.replace(/\/(edit|view)(\?.*)?$/i, '/preview$2');
+            if (!finalUrl.includes('/preview')) {
+                finalUrl = finalUrl.replace(/\/+$/, '') + '/preview';
+            }
+        }
+    } else if (cleanUrl.includes('youtube.com/watch') || cleanUrl.includes('youtu.be/')) {
+        let ytId = '';
+        const vMatch = cleanUrl.match(/[?&]v=([^&]+)/);
+        if (vMatch) ytId = vMatch[1];
+        else {
+            const shortMatch = cleanUrl.match(/youtu\.be\/([^?&]+)/);
+            if (shortMatch) ytId = shortMatch[1];
+        }
+        if (ytId) finalUrl = `https://www.youtube.com/embed/${ytId}`;
+    }
+
+    if (loader) loader.style.display = 'flex';
+    iframe.onload = () => {
+        if (loader) loader.style.display = 'none';
+    };
+    iframe.src = finalUrl;
+
+    modal.classList.remove('hidden');
+}
+
+function closePreviewDocModal() {
+    const modal = document.getElementById('preview-doc-modal');
+    const iframe = document.getElementById('preview-doc-iframe');
+    if (iframe) iframe.src = 'about:blank';
+    if (modal) modal.classList.add('hidden');
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closePreviewDocModal();
+    }
+});
 
 function initNotifications() {
     if (notificationsListener) notificationsListener();

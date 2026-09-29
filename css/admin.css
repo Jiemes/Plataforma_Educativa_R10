@@ -728,4 +728,130 @@ td {
         background: #f1f5f9 !important;
         font-weight: bold !important;
     }
-}
+}
+
+/* MODAL VISOR DE ENLACE PREVIO */
+.enroll-doc-modal-content {
+    max-width: 920px;
+    height: 85vh;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 20px;
+}
+
+.enroll-doc-header {
+    background: #0f172a;
+    color: white;
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #334155;
+}
+
+.doc-header-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.doc-badge {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #38bdf8;
+    letter-spacing: 0.5px;
+}
+
+.doc-header-info h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: white;
+}
+
+.doc-header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.btn-doc-external {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #38bdf8;
+    text-decoration: none;
+    padding: 6px 12px;
+    background: rgba(56, 189, 248, 0.15);
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.btn-doc-external:hover {
+    background: rgba(56, 189, 248, 0.3);
+}
+
+.enroll-doc-body {
+    flex: 1;
+    position: relative;
+    background: #f1f5f9;
+}
+
+.enroll-doc-body iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+.enroll-doc-loader {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    z-index: 5;
+    gap: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.btn-close-modal-round {
+    background: #334155;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #cbd5e1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-close-modal-round:hover {
+    background: #475569;
+    color: #ffffff;
+    transform: scale(1.05);
+}
+
+.spinner-premium {
+    width: 36px;
+    height: 36px;
+    border: 3.5px solid #e2e8f0;
+    border-top: 3.5px solid #00b9e8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+

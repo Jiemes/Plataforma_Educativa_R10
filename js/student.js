@@ -387,22 +387,60 @@ function closeCourseEnrollModal() {
     if (modal) modal.classList.add('hidden');
 }
 
-function openEnrollDocModal(url, title) {
+function previewStudentTaskLink(semana) {
+    const input = document.getElementById(`link-${semana}`);
+    const url = input ? input.value.trim() : '';
+    if (!url) {
+        return cfpAlert("AVISO", "Por favor pega primero el enlace de tu actividad para poder visualizarlo.");
+    }
+    openEnrollDocModal(url, `Actividad Semana ${semana} - Tu Archivo`, "VISTA PREVIA DE TU ACTIVIDAD");
+}
+
+function openEnrollDocModal(url, title, badgeText = "DOCUMENTO INFORMATIVO") {
     const modal = document.getElementById('enroll-doc-modal');
     const iframe = document.getElementById('enroll-doc-iframe');
     const titleEl = document.getElementById('enroll-doc-title');
+    const badgeEl = document.getElementById('enroll-doc-badge');
     const extLink = document.getElementById('enroll-doc-external-link');
     const loader = document.getElementById('enroll-doc-loader');
 
     if (!modal || !iframe) return;
 
-    if (titleEl) titleEl.innerText = title || "Documento Informativo";
-    if (extLink) extLink.href = url;
+    let cleanUrl = (url || '').trim();
+    if (!cleanUrl) {
+        return cfpAlert("AVISO", "Por favor ingresa o pega un enlace primero para visualizarlo.");
+    }
 
-    let finalUrl = url;
-    if (url.includes('drive.google.com')) {
-        const idMatch = url.match(/\/d\/(.+?)(\/|$)/) || url.match(/id=(.+?)(&|$)/);
-        if (idMatch) finalUrl = `https://drive.google.com/file/d/${idMatch[1]}/preview?view=fitH`;
+    if (!/^https?:\/\//i.test(cleanUrl)) {
+        cleanUrl = 'https://' + cleanUrl;
+    }
+
+    if (badgeEl) badgeEl.innerText = badgeText;
+    if (titleEl) titleEl.innerText = title || "Vista de Documento";
+    if (extLink) extLink.href = cleanUrl;
+
+    let finalUrl = cleanUrl;
+    if (cleanUrl.includes('drive.google.com')) {
+        const idMatch = cleanUrl.match(/\/d\/(.+?)(\/|$)/) || cleanUrl.match(/id=(.+?)(&|$)/);
+        if (idMatch) {
+            finalUrl = `https://drive.google.com/file/d/${idMatch[1]}/preview?view=fitH`;
+        }
+    } else if (cleanUrl.includes('docs.google.com')) {
+        if (!cleanUrl.includes('/preview')) {
+            finalUrl = cleanUrl.replace(/\/(edit|view)(\?.*)?$/i, '/preview$2');
+            if (!finalUrl.includes('/preview')) {
+                finalUrl = finalUrl.replace(/\/+$/, '') + '/preview';
+            }
+        }
+    } else if (cleanUrl.includes('youtube.com/watch') || cleanUrl.includes('youtu.be/')) {
+        let ytId = '';
+        const vMatch = cleanUrl.match(/[?&]v=([^&]+)/);
+        if (vMatch) ytId = vMatch[1];
+        else {
+            const shortMatch = cleanUrl.match(/youtu\.be\/([^?&]+)/);
+            if (shortMatch) ytId = shortMatch[1];
+        }
+        if (ytId) finalUrl = `https://www.youtube.com/embed/${ytId}`;
     }
 
     if (loader) loader.style.display = 'flex';
@@ -420,6 +458,12 @@ function closeEnrollDocModal() {
     if (iframe) iframe.src = 'about:blank';
     if (modal) modal.classList.add('hidden');
 }
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeEnrollDocModal();
+    }
+});
 
 async function executeEnrollment() {
     if (!currentPendingEnrollment) return;
@@ -711,13 +755,18 @@ async function loadContent() {
                         
                         <div class="input-group">
                             <label for="link-${i}">Pega aquí el link de Drive con tu actividad: <span id="status-icon-${i}"></span></label>
-                            <input type="text" id="link-${i}" class="input-premium-task link-input-validate" 
-                                   data-semana="${i}"
-                                   name="link_actividad_sem_${i}"
-                                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
-                                   oninput="validateLinkLive(${i}, this.value)"
-                                   placeholder="Pega aquí el enlace directo al archivo de tu actividad..." 
-                                   value="${(entrega && entrega.archivo_url && !entrega.archivo_url.includes('@')) ? entrega.archivo_url : ''}">
+                            <div class="input-with-button">
+                                <input type="text" id="link-${i}" class="input-premium-task link-input-validate" 
+                                       data-semana="${i}"
+                                       name="link_actividad_sem_${i}"
+                                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true"
+                                       oninput="validateLinkLive(${i}, this.value)"
+                                       placeholder="Pega aquí el enlace directo al archivo de tu actividad..." 
+                                       value="${(entrega && entrega.archivo_url && !entrega.archivo_url.includes('@')) ? entrega.archivo_url : ''}">
+                                <button type="button" class="btn-preview-link" onclick="previewStudentTaskLink(${i})" title="Visualizar enlace para verificar que es el correcto">
+                                    👁️ Ver
+                                </button>
+                            </div>
                         </div>
 
                         <div id="validation-banner-${i}" class="validation-banner-task hidden"></div>
