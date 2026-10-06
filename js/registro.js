@@ -52,6 +52,15 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (editDni) {
             loadAdminEditData(editDni);
+            
+            setTimeout(() => {
+                const backLink = document.querySelector('a[href="index.html"]');
+                if (backLink) {
+                    backLink.innerText = "Volver al Panel";
+                    backLink.href = "javascript:history.back()";
+                }
+            }, 500);
+            
         } else {
             if (emailParam) {
                 const emailInput = document.getElementById('reg_email');
@@ -598,6 +607,22 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
             uid = urlParams.get('edit');
             // Mantener fecha de registro original si es posible
             delete userData.fecha_registro;
+            
+            // Si ingresó una contraseña y es el propio alumno editando, la actualizamos
+            if (pass1 && pass1.length >= 6) {
+                const currentUser = firebase.auth().currentUser;
+                if (currentUser && currentUser.uid === uid) {
+                    try {
+                        await currentUser.updatePassword(pass1);
+                    } catch (err) {
+                        if (err.code === 'auth/requires-recent-login') {
+                            throw new Error("Por seguridad, debes salir y volver a ingresar a tu cuenta para cambiar la contraseña.");
+                        } else {
+                            throw err;
+                        }
+                    }
+                }
+            }
         }
 
         // 2. DOCUMENTACIÓN DNI: Almacenamiento seguro, instantáneo y optimizado en Firestore

@@ -36,7 +36,7 @@
             <!-- 3. Derecha: Botones -->
             <div class="header-actions-inline">
                 <button id="btn-header-action" class="btn-action-header">Inicio</button>
-                <button class="btn-config-main" onclick="openConfigModal()"
+                <button class="btn-config-main" onclick="goToEditRegistration()"
                     style="font-weight:900; padding: 10px 15px;">👤
                     Mis datos</button>
             </div>
@@ -217,35 +217,7 @@
         </div>
     </div>
 
-    <!-- MODAL CONFIGURACIÓN (Cambiar contraseña) -->
-    <div id="config-modal" class="modal hidden">
-        <div class="modal-content" style="max-width:400px; padding:35px;">
-            <h2 style="font-weight:900; color:var(--primary-color); text-align:center; margin-bottom:10px;">
-                Mis datos</h2>
-            <p style="text-align:center; font-size:0.9rem; color:#64748b; margin-bottom:25px;">Modifica tu información o cambia tu contraseña</p>
 
-            <div class="input-group">
-                <label style="font-size:0.8rem; font-weight:800; color:var(--primary-color);">Nueva Contraseña</label>
-                <input type="password" id="new-password" class="input-premium-task"
-                    style="width:100%; border-radius:12px;" placeholder="Mínimo 6 caracteres">
-            </div>
-            <div class="input-group" style="margin-top:15px;">
-                <label style="font-size:0.8rem; font-weight:800; color:var(--primary-color);">Repetir Contraseña</label>
-                <input type="password" id="repeat-password" class="input-premium-task"
-                    style="width:100%; border-radius:12px;" placeholder="Confirma tu contraseña">
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:10px; margin-top:30px;">
-                <button class="btn-submit-task" onclick="goToEditRegistration()"
-                    style="width:100%; border-radius:12px; background:#0f172a;">📝 ACTUALIZAR MIS DATOS COMPLETOS</button>
-                <div style="text-align:center; margin: 5px 0; color:#64748b; font-size:0.8rem; font-weight:700;">- O CAMBIA TU CONTRASEÑA -</div>
-                <button class="btn-submit-task" onclick="saveNewPassword()"
-                    style="width:100%; border-radius:12px;">GUARDAR NUEVA CONTRASEÑA</button>
-                <button class="btn-secondary" onclick="closeConfigModal()"
-                    style="width:100%; border-radius:12px; height:45px;">CANCELAR</button>
-            </div>
-        </div>
-    </div>
     <div id="foro-modal" class="modal hidden">
         <div class="modal-content"
             style="max-width:800px; height:80vh; display:flex; flex-direction:column; padding:30px;">
