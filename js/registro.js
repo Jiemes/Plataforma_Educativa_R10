@@ -423,19 +423,35 @@ function toggleTrabajoFields() {
 // Custom Alert function similar to the original app
 function showAlert(title, message) {
     const modal = document.getElementById('cfp-alert');
+    if (!modal) {
+        alert(title + ":\n" + message.replace(/<[^>]*>?/gm, ''));
+        return;
+    }
     document.getElementById('alert-title').innerText = title;
     document.getElementById('alert-message').innerHTML = message;
     modal.classList.add('active');
+}
+
+function closeCfpAlert() {
+    const modal = document.getElementById('cfp-alert');
+    if (modal) modal.classList.remove('active');
 }
 
 // Envío del formulario
 document.getElementById('registro-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const isEditMode = !!urlParams.get('edit');
+
     // 1. VALIDACIÓN OBLIGATORIA DE DOCUMENTOS DNI (FRENTE Y REVERSO)
     let missingDocs = false;
 
-    if (!dniFiles.frente) {
+    // Solo exigimos subir fotos si no estamos en modo edición o si, estando en edición, no hay fotos previas subidas
+    const needsFrente = !isEditMode || (!dniFiles.frente && !dniPreviews.frente);
+    const needsDorso = !isEditMode || (!dniFiles.dorso && !dniPreviews.dorso);
+
+    if (needsFrente && !dniFiles.frente) {
         missingDocs = true;
         const cardFrente = document.getElementById('card-dni-frente');
         const errFrente = document.getElementById('error-frente');
@@ -443,7 +459,7 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
         if (errFrente) errFrente.classList.remove('hidden');
     }
 
-    if (!dniFiles.dorso) {
+    if (needsDorso && !dniFiles.dorso) {
         missingDocs = true;
         const cardDorso = document.getElementById('card-dni-dorso');
         const errDorso = document.getElementById('error-dorso');
@@ -452,14 +468,11 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
     }
 
     if (missingDocs) {
-        showAlert('DOCUMENTACIÓN INCOMPLETA', 'Es <strong>obligatorio</strong> adjuntar la foto del <strong>Frente</strong> y del <strong>Reverso</strong> de tu Documento Nacional de Identidad (DNI) para poder crear tu usuario y completar tu legajo institucional.');
+        showAlert('DOCUMENTACIÓN INCOMPLETA', 'Es <strong>obligatorio</strong> tener la foto del <strong>Frente</strong> y del <strong>Reverso</strong> de tu Documento Nacional de Identidad (DNI). Si nunca las subiste, por favor hazlo ahora.');
         // Hacer scroll suave hacia la sección de DNI
         document.querySelector('.dni-upload-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
     }
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const isEditMode = !!urlParams.get('edit');
 
     // 2. VALIDACIÓN DE CONTRASEÑA
     const pass1 = document.getElementById('reg_pass1').value;
