@@ -1252,7 +1252,7 @@ async function downloadCourseFullExcel(courseId, courseName) {
             const prom = calif.length > 0 ? (calif.reduce((a, b) => a + parseFloat(b.nota || 0), 0) / calif.length).toFixed(1) : '---';
 
             // Registro ordenado y legible de todos los campos
-            excelRows.push({
+            const row = {
                 "CURSO": courseName || courseId,
                 "APELLIDO Y NOMBRE": s.full_name || `${s.apellidos || ''}, ${s.nombres || ''}`.trim(),
                 "DNI": s.dni || s.id || '',
@@ -1316,7 +1316,16 @@ async function downloadCourseFullExcel(courseId, courseName) {
                 "FECHA REGISTRO": s.fecha_registro ? s.fecha_registro.replace('T', ' ').split('.')[0] : '',
                 "ENTREGAS REALIZADAS": weeksCount > 0 ? `${calif.length} / ${weeksCount}` : `${calif.length}`,
                 "PROMEDIO": prom
+            };
+            
+            // Protección de longitud máxima de Excel (32767)
+            Object.keys(row).forEach(k => {
+                if (typeof row[k] === 'string' && row[k].length > 32000) {
+                    row[k] = "DATO DEMASIADO LARGO (No se puede exportar en Excel)";
+                }
             });
+
+            excelRows.push(row);
         }
 
         // Generar libro XLSX
