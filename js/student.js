@@ -1330,3 +1330,11 @@ async function validateLinkLive(semana, url) {
 }
 
 initStudentDashboard();
+
+function goToEditRegistration() {
+    const user = authFirebase.currentUser;
+    if (!user) return cfpAlert("ERROR", "Debes iniciar sesión para actualizar tus datos.");
+    
+    // The user uid is used as document id in alumnos_registro
+    window.location.href = `registro.html?edit=${user.uid}`;
+}
