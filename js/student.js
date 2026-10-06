@@ -227,6 +227,11 @@ function closeTour() {
     localStorage.setItem('r10_tour_seen_' + studentSession.dni, 'true');
 }
 
+function openTour() {
+    const modal = document.getElementById('tour-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+
 async function loadAvailableCourses() {
     const gridAbiertos = document.getElementById('home-available-courses');
     if (!gridAbiertos) return;

@@ -36,6 +36,7 @@
             <!-- 3. Derecha: Botones -->
             <div class="header-actions-inline">
                 <button id="btn-header-action" class="btn-action-header">Inicio</button>
+                <button class="btn-config-main" onclick="openTour()" style="font-weight:900; padding: 10px 15px; background:transparent; border:2px solid #00B9E8; color:#00B9E8;">❓ Ayuda</button>
                 <button class="btn-config-main" onclick="goToEditRegistration()"
                     style="font-weight:900; padding: 10px 15px;">👤
                     Mis datos</button>
@@ -284,8 +285,8 @@
                 <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 25px;">
                     <div style="font-size: 2rem;">⚙️</div>
                     <div>
-                        <h4 style="font-weight: 800; color: #1e293b; margin-bottom: 5px;">Configuración</h4>
-                        <p style="color: #64748b; font-size: 0.95rem;">Usa el botón CONFIG arriba a la derecha para cambiar tu contraseña en cualquier momento.</p>
+                        <h4 style="font-weight: 800; color: #1e293b; margin-bottom: 5px;">Mis Datos</h4>
+                        <p style="color: #64748b; font-size: 0.95rem;">Usa el botón <b>👤 Mis datos</b> arriba a la derecha para actualizar tu información personal, documentos o contraseña en cualquier momento.</p>
                     </div>
                 </div>
                 <button class="btn-primary" onclick="closeTour()" style="width: 100%; padding: 15px; font-size: 1.1rem; border-radius: 12px; margin-top: 10px;">¡Entendido, comencemos!</button>
@@ -391,8 +392,8 @@
         </div>
     </div>
 
-    <script src="js/firebase-config.js?v=9.19.12"></script>
-    <script src="js/student.js?v=9.19.12"></script>
+    <script src="js/firebase-config.js?v=9.19.13"></script>
+    <script src="js/student.js?v=9.19.13"></script>
 </body>
 
 </html>

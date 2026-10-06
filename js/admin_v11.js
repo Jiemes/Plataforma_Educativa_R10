@@ -41,6 +41,7 @@ async function loadStudentsFromFirebase() {
 
         let coursesSnap = null;
         try {
+            checkAdminTour();
             if (adminSession.role === 'super-admin') {
                 const snap = await db.collection('cursos').get();
                 activeCourses = [];
@@ -2710,3 +2711,22 @@ async function generateGeneralReport() {
 }
 
 
+
+// === ADMIN TOUR LOGIC ===
+function checkAdminTour() {
+    const hasSeenTour = localStorage.getItem('r10_admin_tour_seen_' + adminSession.email);
+    if (!hasSeenTour) {
+        setTimeout(openAdminTour, 500);
+    }
+}
+
+function openAdminTour() {
+    const modal = document.getElementById('admin-tour-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeAdminTour() {
+    const modal = document.getElementById('admin-tour-modal');
+    if (modal) modal.classList.add('hidden');
+    localStorage.setItem('r10_admin_tour_seen_' + adminSession.email, 'true');
+}

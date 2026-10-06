@@ -181,6 +181,8 @@
             <header class="content-header">
                 <h2>Administración Plataforma_R10</h2>
                 <div class="header-right">
+                    <button class="btn-secondary" onclick="openAdminTour()"
+                        style="padding:8px 15px; border-radius:12px; margin-right:15px; font-weight:700;">❓ AYUDA</button>
                     <button class="btn-secondary" onclick="loadStudentsFromFirebase()"
                         style="padding:8px 15px; border-radius:12px; margin-right:15px; font-weight:700;">🔄 ACTUALIZAR DATOS</button>
                     <div class="notifications">
@@ -599,10 +601,51 @@
             <div id="alert-message" class="alert-message">Mensaje del sistema</div>
             <button class="btn-alert-confirm" onclick="closeCfpAlert()">ENTENDIDO</button>
         </div>
+    <!-- MODAL TOUR (ADMINISTRADORES) -->
+    <div id="admin-tour-modal" class="modal hidden" style="z-index: 9999;">
+        <div class="modal-content tour-content" style="max-width: 600px; padding: 40px; text-align: left;">
+            <div style="text-align: center; margin-bottom: 25px;">
+                <img src="assets/Logo_R10_GE.png" alt="Logo CFP" style="height: 60px; margin-bottom: 15px;">
+                <h2 style="font-weight: 900; color: var(--primary-color); font-size: 1.8rem;">¡Bienvenido al Panel Docente!</h2>
+                <p style="color: #64748b; font-size: 1rem;">Aquí te explicamos brevemente cómo funciona tu espacio de trabajo.</p>
+            </div>
+            
+            <div class="tour-steps" style="margin-top: 30px;">
+                <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 25px;">
+                    <div style="font-size: 2rem;">📊</div>
+                    <div>
+                        <h4 style="font-weight: 800; color: #1e293b; margin-bottom: 5px;">Estadísticas y Alumnos</h4>
+                        <p style="color: #64748b; font-size: 0.95rem;">Visualiza métricas generales, accede a la lista de estudiantes de cada curso y descarga planillas en formato Excel fácilmente.</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 25px;">
+                    <div style="font-size: 2rem;">📝</div>
+                    <div>
+                        <h4 style="font-weight: 800; color: #1e293b; margin-bottom: 5px;">Correcciones Pendientes</h4>
+                        <p style="color: #64748b; font-size: 0.95rem;">Revisa y califica todas las actividades que envían los alumnos. El sistema calculará el promedio automáticamente.</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 25px;">
+                    <div style="font-size: 2rem;">📚</div>
+                    <div>
+                        <h4 style="font-weight: 800; color: #1e293b; margin-bottom: 5px;">Gestión de Contenidos</h4>
+                        <p style="color: #64748b; font-size: 0.95rem;">Publica clases, materiales y crea buzones de entrega en tiempo real para que tus estudiantes puedan interactuar.</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 25px;">
+                    <div style="font-size: 2rem;">⚙️</div>
+                    <div>
+                        <h4 style="font-weight: 800; color: #1e293b; margin-bottom: 5px;">Configuración</h4>
+                        <p style="color: #64748b; font-size: 0.95rem;">Usa el botón <b>⚙️ Cambiar Clave</b> en el menú lateral izquierdo para actualizar tu contraseña docente cuando lo necesites.</p>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="closeAdminTour()" style="width: 100%; padding: 15px; font-size: 1.1rem; border-radius: 12px; margin-top: 10px;">¡Entendido, comencemos!</button>
+            </div>
+        </div>
     </div>
 
     <script src="js/firebase-config.js?v=9.19.11"></script>
-    <script src="js/admin_v11.js?v=9.19.14"></script>
+    <script src="js/admin_v11.js?v=9.19.15"></script>
 </body>
 
 </html>
