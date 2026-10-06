@@ -1123,13 +1123,17 @@ async function deleteMessageStudent(id) {
 }
 
 function openConfigModal() {
-    document.getElementById('config-modal').classList.remove('hidden');
+    const m = document.getElementById('config-modal');
+    if (m) m.classList.remove('hidden');
 }
 
 function closeConfigModal() {
-    document.getElementById('config-modal').classList.add('hidden');
-    document.getElementById('new-password').value = '';
-    document.getElementById('repeat-password').value = '';
+    const m = document.getElementById('config-modal');
+    if (m) m.classList.add('hidden');
+    const np = document.getElementById('new-password');
+    if (np) np.value = '';
+    const rp = document.getElementById('repeat-password');
+    if (rp) rp.value = '';
 }
 
 async function saveNewPassword() {
