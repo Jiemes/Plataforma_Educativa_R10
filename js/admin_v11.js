@@ -103,6 +103,30 @@ async function loadStudentsFromFirebase() {
             processAndClean(curso.id);
         }
 
+        try {
+            const regSnap = await db.collection('alumnos_registro').get();
+            const regMap = new Map();
+            regSnap.forEach(doc => {
+                const data = doc.data();
+                if (data.dni) regMap.set(String(data.dni).trim(), data);
+            });
+            for (const curso of activeCourses) {
+                if (studentData[curso.id]) {
+                    studentData[curso.id].forEach(s => {
+                        const rData = regMap.get(String(s.dni).trim());
+                        if (rData) {
+                            if (!s.telefono) s.telefono = rData.telefono || rData.celular || '';
+                            if (!s.celular) s.celular = rData.celular || rData.telefono || '';
+                            if (!s.dni_frente_url) s.dni_frente_url = rData.dni_frente_url || '';
+                            if (!s.dni_dorso_url) s.dni_dorso_url = rData.dni_dorso_url || '';
+                        }
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn("Aviso: No se pudo cargar el registro global de alumnos", e);
+        }
+
         refreshCounters();
         if (!currentViewedCourse && activeCourses.length > 0) {
             currentViewedCourse = activeCourses[0].id;
@@ -391,7 +415,8 @@ async function showTable(course) {
                         <button class="btn-correct ${pend.length > 0 ? 'alert' : ''}" style="white-space:nowrap; flex-grow:1;" onclick="openCorrectionView('${s.dni}', '${s.full_name}')">
                             ${pend.length > 0 ? '🔔 CORREGIR' : '📂 ENTREGAS'}
                         </button>
-                        <button class="btn-primary-sm" onclick="openStudentModal('${s.dni}')" style="background:#f1f5f9; border-color:#e2e8f0; color:#1e293b; padding:0 10px;">✏️</button>
+                        <button class="btn-primary-sm" onclick="window.open('registro.html?edit=${s.dni}', '_blank')" style="background:#f1f5f9; border-color:#e2e8f0; color:#1e293b; padding:0 10px;" title="Configuración / Carga Completa">⚙️</button>
+                        <button class="btn-primary-sm" onclick="openStudentModal('${s.dni}')" style="background:#f1f5f9; border-color:#e2e8f0; color:#1e293b; padding:0 10px;" title="Edición Rápida">✏️</button>
                         <button class="btn-icon" onclick="deleteStudent('${course}', '${s.dni}')">🗑️</button>
                     </div>
                 </td>
@@ -512,14 +537,14 @@ function renderDniModalContent() {
                         <p style="margin:0 0 10px 0; font-size:0.85rem;">No se ha cargado la foto del frente.</p>
                         <label class="btn-primary-sm" style="cursor:pointer; display:inline-block;">
                             📤 Cargar Frente
-                            <input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleAdminDniUpload(event, 'frente')">
+                            <input type="file" accept="image/*" style="display:none;" onchange="handleAdminDniUpload(event, 'frente')">
                         </label>
                     </div>
                 `}
                 <div style="margin-top:10px; display:flex; justify-content:flex-end;">
                     <label style="font-size:0.72rem; color:#64748b; cursor:pointer; text-decoration:underline;">
                         ${hasFrente ? '🔄 Reemplazar foto frente' : ''}
-                        <input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleAdminDniUpload(event, 'frente')">
+                        <input type="file" accept="image/*" style="display:none;" onchange="handleAdminDniUpload(event, 'frente')">
                     </label>
                 </div>
             </div>
@@ -545,14 +570,14 @@ function renderDniModalContent() {
                         <p style="margin:0 0 10px 0; font-size:0.85rem;">No se ha cargado la foto del reverso.</p>
                         <label class="btn-primary-sm" style="cursor:pointer; display:inline-block;">
                             📤 Cargar Reverso
-                            <input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleAdminDniUpload(event, 'dorso')">
+                            <input type="file" accept="image/*" style="display:none;" onchange="handleAdminDniUpload(event, 'dorso')">
                         </label>
                     </div>
                 `}
                 <div style="margin-top:10px; display:flex; justify-content:flex-end;">
                     <label style="font-size:0.72rem; color:#64748b; cursor:pointer; text-decoration:underline;">
                         ${hasDorso ? '🔄 Reemplazar foto reverso' : ''}
-                        <input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleAdminDniUpload(event, 'dorso')">
+                        <input type="file" accept="image/*" style="display:none;" onchange="handleAdminDniUpload(event, 'dorso')">
                     </label>
                 </div>
             </div>
@@ -590,6 +615,12 @@ function openImageWindow(url) {
 async function handleAdminDniUpload(event, side) {
     const file = event.target.files && event.target.files[0];
     if (!file || !currentDniStudent) return;
+
+    if (file.type === 'application/pdf') {
+        cfpAlert("ERROR", "Por favor, suba una IMAGEN del DNI (JPG, PNG o WEBP). No se permiten archivos PDF.");
+        event.target.value = '';
+        return;
+    }
 
     cfpAlert("SUBIENDO", "⏳ Procesando y guardando documento...");
     try {
@@ -1226,8 +1257,8 @@ async function downloadCourseFullExcel(courseId, courseName) {
                 "APELLIDO Y NOMBRE": s.full_name || `${s.apellidos || ''}, ${s.nombres || ''}`.trim(),
                 "DNI": s.dni || s.id || '',
                 "CUIL": s.cuil || '',
-                "DOC DNI FRENTE": s.dni_frente_url ? s.dni_frente_url : (s.dni_documentos_completos ? 'Cargado en plataforma' : 'Pendiente'),
-                "DOC DNI REVERSO": s.dni_dorso_url ? s.dni_dorso_url : (s.dni_documentos_completos ? 'Cargado en plataforma' : 'Pendiente'),
+                "DOC DNI FRENTE": s.dni_frente_url ? 'Cargado en plataforma' : (s.dni_documentos_completos ? 'Cargado en plataforma' : 'Pendiente'),
+                "DOC DNI REVERSO": s.dni_dorso_url ? 'Cargado en plataforma' : (s.dni_documentos_completos ? 'Cargado en plataforma' : 'Pendiente'),
                 "ESTADO DOCUMENTACIÓN DNI": ((s.dni_frente_url && s.dni_dorso_url) || s.dni_documentos_completos) ? 'COMPLETA' : 'PENDIENTE',
                 "FECHA NACIMIENTO": s.nacimiento || '',
                 "EDAD": s.edad || cleanAge(s.edad, s.nacimiento),

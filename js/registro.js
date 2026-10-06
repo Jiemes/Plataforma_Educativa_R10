@@ -48,20 +48,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const emailParam = urlParams.get('email');
         const dniParam = urlParams.get('dni');
-        if (emailParam) {
-            const emailInput = document.getElementById('reg_email');
-            if (emailInput) {
-                emailInput.value = emailParam;
-                const preview = document.getElementById('preview_email');
-                if (preview) preview.textContent = emailParam;
+        const editDni = urlParams.get('edit');
+        
+        if (editDni) {
+            loadAdminEditData(editDni);
+        } else {
+            if (emailParam) {
+                const emailInput = document.getElementById('reg_email');
+                if (emailInput) {
+                    emailInput.value = emailParam;
+                    const preview = document.getElementById('preview_email');
+                    if (preview) preview.textContent = emailParam;
+                }
             }
-        }
-        if (dniParam) {
-            const dniInput = document.getElementById('reg_dni');
-            if (dniInput) {
-                dniInput.value = dniParam;
-                const preview = document.getElementById('preview_dni');
-                if (preview) preview.textContent = dniParam;
+            if (dniParam) {
+                const dniInput = document.getElementById('reg_dni');
+                if (dniInput) {
+                    dniInput.value = dniParam;
+                    const preview = document.getElementById('preview_dni');
+                    if (preview) preview.textContent = dniParam;
+                }
             }
         }
     } catch (e) { }
@@ -176,8 +182,13 @@ function processDniFile(file, side) {
     const isImage = file.type.startsWith('image/');
     const isPdf = file.type === 'application/pdf';
 
-    if (!isImage && !isPdf) {
-        showAlert('FORMATO NO VÁLIDO', 'Por favor selecciona una imagen (JPG, PNG, WEBP) o un documento PDF del DNI.');
+    if (isPdf) {
+        showAlert('FORMATO NO VÁLIDO', 'Por favor, sube una IMAGEN de tu DNI (JPG, PNG o WEBP). Los archivos PDF no están permitidos.');
+        return;
+    }
+
+    if (!isImage) {
+        showAlert('FORMATO NO VÁLIDO', 'Por favor selecciona una imagen (JPG, PNG, WEBP) del DNI.');
         return;
     }
 
@@ -229,12 +240,6 @@ function processDniFile(file, side) {
             img.src = loadEvent.target.result;
         };
         reader.readAsDataURL(file);
-    } else if (isPdf) {
-        dniFiles[side] = file;
-        // Para PDF usamos un icono/thumbnail informativo
-        const pdfPlaceholder = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='140' viewBox='0 0 200 140'><rect width='200' height='140' fill='%23fee2e2'/><text x='100' y='75' font-size='32' text-anchor='middle' fill='%23ef4444'>📄 PDF</text></svg>";
-        dniPreviews[side] = pdfPlaceholder;
-        displayDniPreview(side, pdfPlaceholder, file.name, formatBytes(file.size));
     }
 }
 
@@ -444,18 +449,38 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
         return;
     }
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const isEditMode = !!urlParams.get('edit');
+
     // 2. VALIDACIÓN DE CONTRASEÑA
     const pass1 = document.getElementById('reg_pass1').value;
     const pass2 = document.getElementById('reg_pass2').value;
 
-    if (pass1 !== pass2) {
-        showAlert('ERROR', 'Las contraseñas no coinciden.');
-        return;
-    }
+    if (!isEditMode) {
+        if (!pass1 || !pass2) {
+            showAlert('ERROR', 'Por favor, completa y confirma tu contraseña.');
+            return;
+        }
 
-    if (pass1.length < 6) {
-        showAlert('ERROR', 'La contraseña debe tener al menos 6 caracteres.');
-        return;
+        if (pass1 !== pass2) {
+            showAlert('ERROR', 'Las contraseñas no coinciden.');
+            return;
+        }
+
+        if (pass1.length < 6) {
+            showAlert('ERROR', 'La contraseña debe tener al menos 6 caracteres.');
+            return;
+        }
+    } else if (pass1 || pass2) {
+        if (pass1 !== pass2) {
+            showAlert('ERROR', 'Las contraseñas no coinciden.');
+            return;
+        }
+
+        if (pass1.length < 6) {
+            showAlert('ERROR', 'La contraseña debe tener al menos 6 caracteres.');
+            return;
+        }
     }
 
     const email = document.getElementById('reg_email').value.trim().toLowerCase();
@@ -552,21 +577,27 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
 
         // 1. Crear usuario en Firebase Auth o iniciar sesión si ya se creó previamente
         let uid;
-        try {
-            const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, pass1);
-            uid = userCredential.user.uid;
-        } catch (authErr) {
-            if (authErr.code === 'auth/email-already-in-use') {
-                // Si el usuario ya fue creado en Auth, nos autenticamos para completar el registro
-                try {
-                    const loginCred = await firebase.auth().signInWithEmailAndPassword(email, pass1);
-                    uid = loginCred.user.uid;
-                } catch (loginErr) {
-                    throw new Error("El correo ingresado ya posee una cuenta en el sistema pero la contraseña no coincide.<br><br>Si ya eras alumno en Plataforma R10 o CFP 403, ingresa con tu contraseña anterior para completar tu legajo con las fotos de tu DNI.<br><br>Si no recuerdas tu contraseña, puedes restablecerla desde la pantalla de inicio mediante '¿Olvidaste tu contraseña?' y luego regresar a completar tu registro.");
+        if (!isEditMode) {
+            try {
+                const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, pass1);
+                uid = userCredential.user.uid;
+            } catch (authErr) {
+                if (authErr.code === 'auth/email-already-in-use') {
+                    // Si el usuario ya fue creado en Auth, nos autenticamos para completar el registro
+                    try {
+                        const loginCred = await firebase.auth().signInWithEmailAndPassword(email, pass1);
+                        uid = loginCred.user.uid;
+                    } catch (loginErr) {
+                        throw new Error("El correo ingresado ya posee una cuenta en el sistema pero la contraseña no coincide.<br><br>Si ya eras alumno en Plataforma R10 o CFP 403, ingresa con tu contraseña anterior para completar tu legajo con las fotos de tu DNI.<br><br>Si no recuerdas tu contraseña, puedes restablecerla desde la pantalla de inicio mediante '¿Olvidaste tu contraseña?' y luego regresar a completar tu registro.");
+                    }
+                } else {
+                    throw authErr;
                 }
-            } else {
-                throw authErr;
             }
+        } else {
+            uid = urlParams.get('edit');
+            // Mantener fecha de registro original si es posible
+            delete userData.fecha_registro;
         }
 
         // 2. DOCUMENTACIÓN DNI: Almacenamiento seguro, instantáneo y optimizado en Firestore
@@ -602,14 +633,24 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
         // Breve pausa para brindar retroalimentación visual fluida
         await new Promise(r => setTimeout(r, 600));
 
-        finishLoadingModal(
-            '¡Registro Completado con Éxito!',
-            'Tus datos personales y fotografías de DNI han sido guardados correctamente en tu legajo. En breve serás redirigido a la pantalla principal.'
-        );
-
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 2200);
+        if (isEditMode) {
+            finishLoadingModal(
+                '¡Datos Actualizados con Éxito!',
+                'El legajo del alumno ha sido actualizado correctamente. Puedes cerrar esta pestaña.'
+            );
+            setTimeout(() => {
+                hideLoadingModal();
+                showAlert('ÉXITO', 'Los datos se actualizaron correctamente.');
+            }, 2200);
+        } else {
+            finishLoadingModal(
+                '¡Registro Completado con Éxito!',
+                'Tus datos personales y fotografías de DNI han sido guardados correctamente en tu legajo. En breve serás redirigido a la pantalla principal.'
+            );
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 2200);
+        }
 
     } catch (error) {
         hideLoadingModal();
@@ -620,3 +661,86 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
         btnSubmit.disabled = false;
     }
 });
+
+async function loadAdminEditData(dni) {
+    showLoadingModal('Cargando datos...', 'Buscando legajo en la base de datos...', 50);
+    try {
+        const doc = await db.collection('alumnos_registro').doc(dni).get();
+        if (doc.exists) {
+            const data = doc.data();
+            document.getElementById('reg_apellidos').value = data.apellidos || '';
+            document.getElementById('reg_nombres').value = data.nombres || '';
+            document.getElementById('reg_dni').value = data.dni || '';
+            document.getElementById('reg_cuil').value = data.cuil || '';
+            document.getElementById('reg_nacimiento').value = data.nacimiento || '';
+            document.getElementById('reg_lugar_nac').value = data.lugar_nacimiento || '';
+            document.getElementById('reg_nacionalidad').value = data.nacionalidad || '';
+            document.getElementById('reg_sexo').value = data.sexo || '';
+            document.getElementById('reg_identidad').value = data.identidad || '';
+            document.getElementById('reg_sobrenombre').value = data.sobrenombre || '';
+            document.getElementById('reg_email').value = data.email || '';
+            document.getElementById('reg_celular').value = data.celular || '';
+            document.getElementById('reg_telefono').value = data.telefono || '';
+            document.getElementById('reg_calle').value = data.calle || '';
+            document.getElementById('reg_altura').value = data.altura || '';
+            document.getElementById('reg_piso').value = data.piso || '';
+            document.getElementById('reg_depto').value = data.depto || '';
+            document.getElementById('reg_torre').value = data.torre || '';
+            document.getElementById('reg_entrecalles').value = data.entre_calles || '';
+            document.getElementById('reg_localidad').value = data.localidad || '';
+            document.getElementById('reg_distrito').value = data.distrito || '';
+            document.getElementById('reg_provincia').value = data.provincia || '';
+            document.getElementById('reg_cp').value = data.codigo_postal || '';
+            document.getElementById('reg_cant_per').value = data.cant_personas || '';
+            document.getElementById('reg_cant_adu').value = data.cant_adultos || '';
+            document.getElementById('reg_cant_nin').value = data.cant_ninos || '';
+            document.getElementById('reg_cant_hij').value = data.cant_hijos || '';
+            document.getElementById('reg_lenguas').value = data.lenguas || '';
+            
+            document.getElementById('salud_asma').checked = !!data.salud_asma;
+            document.getElementById('salud_celiaquia').checked = !!data.salud_celiaquia;
+            document.getElementById('salud_cardiaco').checked = !!data.salud_cardiaco;
+            document.getElementById('salud_diabetes').checked = !!data.salud_diabetes;
+            document.getElementById('salud_presion').checked = !!data.salud_presion;
+            document.getElementById('salud_convulsiones').checked = !!data.salud_convulsiones;
+            document.getElementById('salud_alergias').checked = !!data.salud_alergias;
+            document.getElementById('salud_discapacidad').checked = !!data.salud_discapacidad;
+            document.getElementById('reg_otras_salud').value = data.otras_salud || '';
+            
+            document.getElementById('reg_nivel_edu').value = data.nivel_educativo || '';
+            document.getElementById('reg_estado_edu').value = data.estado_educativo || '';
+            document.getElementById('reg_trabajando').value = data.esta_trabajando || '';
+            toggleTrabajoFields();
+            
+            if (data.esta_trabajando === 'SI') {
+                document.getElementById('reg_ocupacion').value = data.ocupacion || '';
+                document.getElementById('reg_lugar_trabajo').value = data.lugar_trabajo || '';
+                document.getElementById('reg_trabajo_desde').value = data.trabajo_desde || '';
+                document.getElementById('reg_contratacion').value = data.tipo_contratacion || '';
+            } else if (data.esta_trabajando === 'NO') {
+                document.getElementById('reg_busca_trabajo').value = data.busca_trabajo || '';
+                document.getElementById('reg_trabajo_antes').value = data.trabajo_antes || '';
+            }
+            
+            if (data.dni_frente_url) {
+                dniPreviews.frente = data.dni_frente_url;
+                displayDniPreview('frente', data.dni_frente_url, 'Frente_Cargado.jpg', 'OK');
+                const cardEl = document.getElementById('card-dni-frente');
+                if(cardEl) cardEl.classList.add('has-file');
+            }
+            if (data.dni_dorso_url) {
+                dniPreviews.dorso = data.dni_dorso_url;
+                displayDniPreview('dorso', data.dni_dorso_url, 'Reverso_Cargado.jpg', 'OK');
+                const cardEl = document.getElementById('card-dni-dorso');
+                if(cardEl) cardEl.classList.add('has-file');
+            }
+            
+            // Password optional
+            document.getElementById('reg_pass1').removeAttribute('required');
+            document.getElementById('reg_pass2').removeAttribute('required');
+            document.getElementById('reg_pass1').placeholder = "Dejar vacío para no cambiar";
+            document.getElementById('reg_pass2').placeholder = "Dejar vacío para no cambiar";
+        }
+    } catch(e) { console.error(e); }
+    hideLoadingModal();
+}
