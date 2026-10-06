@@ -307,7 +307,7 @@ function renderCharts(all) {
     Object.values(charts).forEach(c => c.destroy());
     const opt = { responsive: true, maintainAspectRatio: false };
 
-    const trabaja = all.filter(s => s.trabajo_actual && !s.trabajo_actual.toUpperCase().includes('NO')).length;
+    const trabaja = all.filter(s => s.esta_trabajando && s.esta_trabajando.toUpperCase() === 'SI').length;
     charts.trabajo = new Chart(document.getElementById('chart-trabajo'), {
         type: 'pie',
         data: { labels: ['Trabaja', 'No Trabaja'], datasets: [{ data: [trabaja, all.length - trabaja], backgroundColor: ['#10b981', '#f1f5f9'] }] },
@@ -322,7 +322,7 @@ function renderCharts(all) {
         options: opt
     });
 
-    const sexo = { M: all.filter(s => s.sexo === 'M').length, F: all.filter(s => s.sexo === 'F').length };
+    const sexo = { M: all.filter(s => s.sexo && s.sexo.toUpperCase() === 'MASCULINO').length, F: all.filter(s => s.sexo && s.sexo.toUpperCase() === 'FEMENINO').length };
     charts.sexo = new Chart(document.getElementById('chart-sexo'), {
         type: 'doughnut',
         data: { labels: ['Masculino', 'Femenino'], datasets: [{ data: [sexo.M, sexo.F], backgroundColor: ['#1e293b', '#FF6384'] }] },
