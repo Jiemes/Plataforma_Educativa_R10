@@ -778,6 +778,8 @@ async function loadAdminEditData(dni) {
             document.getElementById('reg_pass2').removeAttribute('required');
             document.getElementById('reg_pass1').placeholder = "Dejar vacío para no cambiar";
             document.getElementById('reg_pass2').placeholder = "Dejar vacío para no cambiar";
+            document.getElementById('reg_pass1').value = "";
+            document.getElementById('reg_pass2').value = "";
         }
     } catch(e) { console.error(e); }
     hideLoadingModal();
