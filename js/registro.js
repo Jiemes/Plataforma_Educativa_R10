@@ -161,6 +161,11 @@ function finishLoadingModal(successTitle, successDesc) {
     if (percentEl) percentEl.textContent = '100%';
     if (warnBox) warnBox.style.display = 'none';
 
+    if (window.location.search.includes('edit=')) {
+        const btnReturn = document.getElementById('btn-return-campus');
+        if (btnReturn) btnReturn.style.display = 'block';
+    }
+
     window.onbeforeunload = null;
 }
 
@@ -674,12 +679,9 @@ document.getElementById('registro-form').addEventListener('submit', async (e) =>
         if (isEditMode) {
             finishLoadingModal(
                 '¡Datos Actualizados con Éxito!',
-                'El legajo del alumno ha sido actualizado correctamente. Puedes cerrar esta pestaña.'
+                'Tus datos y configuración han sido actualizados correctamente. Ya puedes volver al campus virtual.'
             );
-            setTimeout(() => {
-                hideLoadingModal();
-                showAlert('ÉXITO', 'Los datos se actualizaron correctamente.');
-            }, 2200);
+            // No hideLoadingModal y no showAlert para que quede visible el botón de volver.
         } else {
             finishLoadingModal(
                 '¡Registro Completado con Éxito!',
