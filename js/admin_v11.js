@@ -116,10 +116,12 @@ async function loadStudentsFromFirebase() {
                     studentData[curso.id].forEach(s => {
                         const rData = regMap.get(String(s.dni).trim());
                         if (rData) {
-                            if (!s.telefono) s.telefono = rData.telefono || rData.celular || '';
-                            if (!s.celular) s.celular = rData.celular || rData.telefono || '';
-                            if (!s.dni_frente_url) s.dni_frente_url = rData.dni_frente_url || '';
-                            if (!s.dni_dorso_url) s.dni_dorso_url = rData.dni_dorso_url || '';
+                            const originalCourseData = { ...s };
+                            Object.assign(s, rData);
+                            if (originalCourseData.id) s.id = originalCourseData.id;
+                            if (originalCourseData.estado) s.estado = originalCourseData.estado;
+                            if (originalCourseData.progreso !== undefined) s.progreso = originalCourseData.progreso;
+                            if (originalCourseData.inscripcion_fecha) s.inscripcion_fecha = originalCourseData.inscripcion_fecha;
                         }
                     });
                 }
