@@ -408,7 +408,7 @@ async function showTable(course) {
                         ${hasDni ? '🪪 Ver DNI' : '⚠️ Sin DNI'}
                     </button>
                 </td>
-                <td>${s.telefono || '---'}</td>
+                <td>${s.celular || s.telefono || '---'}</td>
                 <td>${s.email}</td>
                 <td style="text-align:center">${s.edad}</td>
                 <td style="text-align:center">${corr.length} / ${currWeeksCount}</td>
