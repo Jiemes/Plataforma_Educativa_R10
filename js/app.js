@@ -58,12 +58,23 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
             const adminDoc = await db.collection('usuarios_auth').doc(email).get();
             if (adminDoc.exists) {
                 const adminData = adminDoc.data();
-                const userRole = adminData.role || 'profesor'; 
-                localStorage.setItem('admin_session', JSON.stringify({
-                    email: email, role: userRole, nombre: adminData.nombre || 'Administrador', cursos: adminData.cursos || []
-                }));
-                window.location.href = 'admin.html';
-                return;
+                const userRole = adminData.role || 'profesor';
+                // Require platformId to match the current platform
+                const adminPlatform = adminData.platformId || adminData.platform || null;
+                const currentPlatform = window.PLATFORM_ID;
+                if (adminPlatform && adminPlatform === currentPlatform) {
+                    // Save admin session and redirect to admin area
+                    localStorage.setItem('admin_session', JSON.stringify({
+                        email: email,
+                        role: userRole,
+                        nombre: adminData.nombre || 'Administrador',
+                        cursos: adminData.cursos || [],
+                        platformId: currentPlatform
+                    }));
+                    window.location.href = 'admin.html';
+                    return;
+                }
+                // Otherwise treat as regular student (no admin session)
             }
         }
 
