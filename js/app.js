@@ -97,11 +97,14 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
                         const finalAData = aDataCurrent.exists ? aDataCurrent.data() : aData;
                         
                         const userRole = finalAData.role || 'profesor';
-                        localStorage.setItem('admin_session', JSON.stringify({
-                            email: email, role: userRole, nombre: finalAData.nombre || 'Administrador', cursos: finalAData.cursos || []
-                        }));
-                        window.location.href = 'admin.html';
-                        return;
+                        const aPlatform = finalAData.platformId || finalAData.platform || null;
+                        if (aPlatform && aPlatform === window.PLATFORM_ID) {
+                            localStorage.setItem('admin_session', JSON.stringify({
+                                email: email, role: userRole, nombre: finalAData.nombre || 'Administrador', cursos: finalAData.cursos || [], platformId: window.PLATFORM_ID
+                            }));
+                            window.location.href = 'admin.html';
+                            return;
+                        }
                     }
                 }
             } catch (e) { }

@@ -1,5 +1,11 @@
 // Administración CFP 403 // Core Admin Logic v9.18.3 (RBAC & Multi-Course Logistics)
 let adminSession = JSON.parse(localStorage.getItem('admin_session'));
+// El localStorage se comparte entre todas las plataformas del mismo dominio: solo se acepta
+// la sesión si pertenece a esta plataforma (o es super-admin).
+if (adminSession && adminSession.role !== 'super-admin' && adminSession.platformId !== window.PLATFORM_ID) {
+    localStorage.removeItem('admin_session');
+    adminSession = null;
+}
 if (!adminSession) { window.location.href = 'index.html'; }
 
 let studentData = {};
