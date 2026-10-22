@@ -1699,11 +1699,18 @@ async function deleteWeek(num) {
         const ref = db.collection('config_cursos').doc(currentClaseTab);
         const doc = await ref.get();
         if (!doc.exists) return;
-        let mats = doc.data().materiales || {};
-        delete mats[`sem_${num}`];
-        await ref.set({ materiales: mats }, { merge: true });
+        // set({merge:true}) nunca elimina claves de un mapa: se debe usar update + FieldValue.delete()
+        const del = firebase.firestore.FieldValue.delete();
+        const upd = { [`materiales.sem_${num}`]: del };
+        if (doc.data().materials && doc.data().materials[`sem_${num}`] !== undefined) {
+            upd[`materials.sem_${num}`] = del;
+        }
+        await ref.update(upd);
         loadClaseConfig(currentClaseTab);
-    } catch (e) { }
+    } catch (e) {
+        console.error(e);
+        cfpAlert("ERROR", "No se pudo borrar la clase: " + e.message);
+    }
 }
 
 // VISUALIZACIÓN RÁPIDA DE ENLACES (ADMIN)
