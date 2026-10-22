@@ -1693,20 +1693,55 @@ async function saveLinksManual(sem) {
     } catch (err) { cfpAlert("ERROR", "Error: " + err.message); }
 }
 
+// Confirmación propia: window.confirm puede estar bloqueado por el navegador y fallar en silencio
+function cfpConfirm(message, okLabel = 'Eliminar') {
+    return new Promise(resolve => {
+        const ov = document.createElement('div');
+        ov.style = 'position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+        ov.innerHTML = `
+            <div style="background:#fff;border-radius:16px;padding:25px;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3);">
+                <div style="font-size:2rem;">⚠️</div>
+                <p style="margin:10px 0 20px;font-weight:600;color:#1e293b;">${message}</p>
+                <div style="display:flex;gap:10px;">
+                    <button type="button" data-r="0" style="flex:1;padding:10px;border:none;border-radius:10px;background:#e2e8f0;font-weight:700;cursor:pointer;">Cancelar</button>
+                    <button type="button" data-r="1" style="flex:1;padding:10px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-weight:700;cursor:pointer;">${okLabel}</button>
+                </div>
+            </div>`;
+        ov.addEventListener('click', e => {
+            const r = e.target.getAttribute && e.target.getAttribute('data-r');
+            if (r === null || r === undefined) { if (e.target === ov) { ov.remove(); resolve(false); } return; }
+            ov.remove();
+            resolve(r === '1');
+        });
+        document.body.appendChild(ov);
+    });
+}
+
 async function deleteWeek(num) {
-    if (!confirm(`¿Borrar Clase ${num}?`)) return;
+    if (!(await cfpConfirm(`¿Borrar la Clase ${num}?`))) return;
     try {
         const ref = db.collection('config_cursos').doc(currentClaseTab);
         const doc = await ref.get();
-        if (!doc.exists) return;
-        // set({merge:true}) nunca elimina claves de un mapa: se debe usar update + FieldValue.delete()
+        if (!doc.exists) return cfpAlert("ERROR", "No se encontró la configuración del curso.");
         const del = firebase.firestore.FieldValue.delete();
-        const upd = { [`materiales.sem_${num}`]: del };
-        if (doc.data().materials && doc.data().materials[`sem_${num}`] !== undefined) {
-            upd[`materials.sem_${num}`] = del;
-        }
+        const key = `sem_${num}`;
+        const upd = {};
+        const d = doc.data();
+        if (d.materiales && d.materiales[key] !== undefined) upd[`materiales.${key}`] = del;
+        if (d.materials && d.materials[key] !== undefined) upd[`materials.${key}`] = del;
+        if (!Object.keys(upd).length) upd[`materiales.${key}`] = del;
         await ref.update(upd);
-        loadClaseConfig(currentClaseTab);
+
+        // Verificación: si sigue existiendo, se reescribe el mapa completo sin esa clase
+        const chk = (await ref.get()).data() || {};
+        if ((chk.materiales && chk.materiales[key] !== undefined) || (chk.materials && chk.materials[key] !== undefined)) {
+            const fix = {};
+            if (chk.materiales) { const m = { ...chk.materiales }; delete m[key]; fix.materiales = m; }
+            if (chk.materials) { const m = { ...chk.materials }; delete m[key]; fix.materials = m; }
+            await ref.update(fix);
+        }
+        await loadClaseConfig(currentClaseTab);
+        cfpAlert("ÉXITO", `🗑️ Clase ${num} eliminada.`);
     } catch (e) {
         console.error(e);
         cfpAlert("ERROR", "No se pudo borrar la clase: " + e.message);
