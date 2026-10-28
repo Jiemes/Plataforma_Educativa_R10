@@ -16,6 +16,23 @@ function closeCfpAlert() {
     if (modal) modal.classList.remove('active');
 }
 
+// Si es docente confirmado de R10 o tiene sesión de admin activa, debe ser redirigido a admin.html
+const r10DocentesList = ['ndinova@abc.gob.ar', 'abottini2@abc.gob.ar', 'mparera2@abc.gob.ar', 'sanchezjuanmanuel@abc.gob.ar'];
+let adminSessionObj = null;
+try { adminSessionObj = JSON.parse(localStorage.getItem('admin_session')); } catch(e){}
+
+if (studentSession && r10DocentesList.includes(String(studentSession.email || '').toLowerCase().trim())) {
+    // Los docentes de R10 no pueden ser alumnos en Plataforma Educativa R10
+    localStorage.removeItem('user_session');
+    if (!adminSessionObj) {
+        window.location.href = 'index.html';
+    } else {
+        window.location.href = 'admin.html';
+    }
+} else if (adminSessionObj && (adminSessionObj.role === 'super-admin' || r10DocentesList.includes(String(adminSessionObj.email || '').toLowerCase().trim()))) {
+    window.location.href = 'admin.html';
+}
+
 if (!studentSession) { window.location.href = 'index.html'; }
 
 function getCourseIcon(courseName) {

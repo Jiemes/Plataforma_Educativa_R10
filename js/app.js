@@ -53,28 +53,97 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
             if (err.code !== 'auth/user-not-found' && err.code !== 'auth/invalid-login-credentials' && err.code !== 'permission-denied') throw err;
         }
 
+// Helper central: Determina si un usuario registrado en usuarios_auth es docente en la plataforma actual
+function isDocenteCurrentPlatform(email, adminData) {
+    if (!adminData) return false;
+    const userEmail = String(email || adminData.email || '').toLowerCase().trim();
+
+    // 1. Super-admin o rol administrador general con acceso total: siempre admin
+    if (adminData.role === 'super-admin' || adminData.cursos === 'all' || userEmail === 'sanchezjuanmanuel@abc.gob.ar') {
+        return true;
+    }
+
+    // 2. Docentes confirmados institucionalmente de Región 10:
+    const docentesR10 = [
+        'ndinova@abc.gob.ar',
+        'abottini2@abc.gob.ar',
+        'mparera2@abc.gob.ar',
+        'sanchezjuanmanuel@abc.gob.ar'
+    ];
+
+    const isCfp = Boolean(window.IS_PLATAFORMA_CFP403 || window.PLATFORM_ID === 'EDU');
+    const isR10Platform = Boolean(window.IS_PLATAFORMA_EDUCATIVA_R10 || window.IS_PLATAFORMA_R10_LEGACY || window.PLATFORM_ID === 'EDUCATIVA_R10' || window.PLATFORM_ID === 'R10');
+
+    // 3. Caso especial Germán Massa: docente exclusivo de CFP 403, alumno en R10
+    if (userEmail === 'germanmassa@abc.gob.ar') {
+        return isCfp; // Es docente SOLO en CFP 403; en R10 es alumno
+    }
+
+    const cfpCourses = ['diseño', 'diseño2', 'programacion'];
+
+    // 4. Si la plataforma en ejecución es R10 (Plataforma Educativa R10 o Plataforma R10):
+    if (isR10Platform) {
+        if (docentesR10.includes(userEmail)) {
+            return true;
+        }
+        const plat = String(adminData.platformId || adminData.platform || '').toUpperCase().trim();
+        if (plat === 'R10' || plat === 'EDUCATIVA_R10') return true;
+        if (plat === 'EDU' || plat === 'CFP403') return false;
+
+        // Si tiene cursos asignados, verificar si alguno corresponde a R10
+        const cursos = Array.isArray(adminData.cursos) ? adminData.cursos : [];
+        if (cursos.length > 0) {
+            return cursos.some(c => !cfpCourses.includes(String(c).toLowerCase().trim()));
+        }
+        return false;
+    }
+
+    // 5. Si la plataforma actual es CFP 403:
+    if (isCfp) {
+        if (docentesR10.includes(userEmail)) {
+            return false;
+        }
+        const plat = String(adminData.platformId || adminData.platform || '').toUpperCase().trim();
+        if (plat === 'EDU' || plat === 'CFP403') return true;
+        if (plat === 'R10' || plat === 'EDUCATIVA_R10') return false;
+
+        const cursos = Array.isArray(adminData.cursos) ? adminData.cursos : [];
+        return cursos.some(c => cfpCourses.includes(String(c).toLowerCase().trim()));
+    }
+
+    return true;
+}
+
         // 2. SI LOGUEÓ: VERIFICAR SI ES ADMIN O ALUMNO
         if (isLoggedIn) {
             const adminDoc = await db.collection('usuarios_auth').doc(email).get();
             if (adminDoc.exists) {
                 const adminData = adminDoc.data();
-                const userRole = adminData.role || 'profesor';
-                // Require platformId to match the current platform
-                const adminPlatform = adminData.platformId || adminData.platform || null;
-                const currentPlatform = window.PLATFORM_ID;
-                if (adminPlatform && adminPlatform === currentPlatform) {
-                    // Save admin session and redirect to admin area
+                if (isDocenteCurrentPlatform(email, adminData)) {
+                    const userRole = adminData.role || 'profesor';
                     localStorage.setItem('admin_session', JSON.stringify({
                         email: email,
                         role: userRole,
                         nombre: adminData.nombre || 'Administrador',
                         cursos: adminData.cursos || [],
-                        platformId: currentPlatform
+                        platformId: window.PLATFORM_ID
                     }));
+                    localStorage.removeItem('user_session');
+
+                    // Si por error se había creado un registro de alumno previo en R10 para este docente, limpiarlo
+                    try {
+                        const docentesR10 = ['ndinova@abc.gob.ar', 'abottini2@abc.gob.ar', 'mparera2@abc.gob.ar', 'sanchezjuanmanuel@abc.gob.ar'];
+                        if (docentesR10.includes(email)) {
+                            if (cleanDni && cleanDni.length >= 7) {
+                                db.collection('alumnos_habilidades 2026').doc(cleanDni).delete().catch(() => {});
+                            }
+                        }
+                    } catch (cleanErr) {}
+
                     window.location.href = 'admin.html';
                     return;
                 }
-                // Otherwise treat as regular student (no admin session)
+                // Si no es docente de esta plataforma (caso German Massa en R10), continúa como alumno regular
             }
         }
 
@@ -86,22 +155,26 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
                 if (adminCheck.exists) {
                     const aData = adminCheck.data();
                     if (aData.password_init && (aData.password_init === cleanDni || aData.password_init === rawPass)) {
-                        try {
-                            await authFirebase.createUserWithEmailAndPassword(email, rawPass);
-                        } catch(ee) {
-                            if (ee.code !== 'auth/email-already-in-use') throw ee;
-                            await authFirebase.signInWithEmailAndPassword(email, rawPass);
-                        }
-                        await db.collection('usuarios_auth').doc(email).update({ password_init: firebase.firestore.FieldValue.delete() });
-                        const aDataCurrent = await db.collection('usuarios_auth').doc(email).get();
-                        const finalAData = aDataCurrent.exists ? aDataCurrent.data() : aData;
-                        
-                        const userRole = finalAData.role || 'profesor';
-                        const aPlatform = finalAData.platformId || finalAData.platform || null;
-                        if (aPlatform && aPlatform === window.PLATFORM_ID) {
+                        if (isDocenteCurrentPlatform(email, aData)) {
+                            try {
+                                await authFirebase.createUserWithEmailAndPassword(email, rawPass);
+                            } catch(ee) {
+                                if (ee.code !== 'auth/email-already-in-use') throw ee;
+                                await authFirebase.signInWithEmailAndPassword(email, rawPass);
+                            }
+                            await db.collection('usuarios_auth').doc(email).update({ password_init: firebase.firestore.FieldValue.delete() });
+                            const aDataCurrent = await db.collection('usuarios_auth').doc(email).get();
+                            const finalAData = aDataCurrent.exists ? aDataCurrent.data() : aData;
+                            
+                            const userRole = finalAData.role || 'profesor';
                             localStorage.setItem('admin_session', JSON.stringify({
-                                email: email, role: userRole, nombre: finalAData.nombre || 'Administrador', cursos: finalAData.cursos || [], platformId: window.PLATFORM_ID
+                                email: email,
+                                role: userRole,
+                                nombre: finalAData.nombre || 'Administrador',
+                                cursos: finalAData.cursos || [],
+                                platformId: window.PLATFORM_ID
                             }));
+                            localStorage.removeItem('user_session');
                             window.location.href = 'admin.html';
                             return;
                         }

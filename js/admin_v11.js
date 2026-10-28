@@ -1,8 +1,32 @@
 // Administración CFP 403 // Core Admin Logic v9.18.3 (RBAC & Multi-Course Logistics)
 let adminSession = JSON.parse(localStorage.getItem('admin_session'));
-// El localStorage se comparte entre todas las plataformas del mismo dominio: solo se acepta
-// la sesión si pertenece a esta plataforma (o es super-admin).
-if (adminSession && adminSession.role !== 'super-admin' && adminSession.platformId !== window.PLATFORM_ID) {
+
+// Validación de sesión para evitar conflictos entre plataformas bajo el mismo dominio
+function isValidAdminSessionForPlatform(session) {
+    if (!session) return false;
+    if (session.role === 'super-admin') return true;
+    const sessionEmail = String(session.email || '').toLowerCase().trim();
+    if (sessionEmail === 'sanchezjuanmanuel@abc.gob.ar') return true;
+
+    const isCfp = Boolean(window.IS_PLATAFORMA_CFP403 || window.PLATFORM_ID === 'EDU');
+    const isR10 = Boolean(window.IS_PLATAFORMA_EDUCATIVA_R10 || window.IS_PLATAFORMA_R10_LEGACY || window.PLATFORM_ID === 'EDUCATIVA_R10' || window.PLATFORM_ID === 'R10');
+
+    if (isR10) {
+        // En R10, German Massa no es docente
+        if (sessionEmail === 'germanmassa@abc.gob.ar') return false;
+        if (session.platformId === 'EDU') return false;
+        return true;
+    }
+    if (isCfp) {
+        const docentesR10 = ['ndinova@abc.gob.ar', 'abottini2@abc.gob.ar', 'mparera2@abc.gob.ar'];
+        if (docentesR10.includes(sessionEmail)) return false;
+        if (session.platformId === 'R10' || session.platformId === 'EDUCATIVA_R10') return false;
+        return true;
+    }
+    return true;
+}
+
+if (adminSession && !isValidAdminSessionForPlatform(adminSession)) {
     localStorage.removeItem('admin_session');
     adminSession = null;
 }
@@ -58,7 +82,8 @@ async function loadStudentsFromFirebase() {
                         if (is2026) return;
                         if (c.platformId && c.platformId !== window.PLATFORM_ID) return;
                     } else {
-                        if (!is2026 && c.platformId !== 'EDUCATIVA_R10') return;
+                        // En Plataforma Educativa R10: no mostrar cursos propios de CFP 403 (EDU)
+                        if (c.platformId === 'EDU' || doc.id === 'diseño' || doc.id === 'diseño2') return;
                     }
                     activeCourses.push({ id: doc.id, ...c });
                 });
@@ -72,7 +97,8 @@ async function loadStudentsFromFirebase() {
                         if (!window.IS_PLATAFORMA_EDUCATIVA_R10) {
                             if (is2026) continue;
                         } else {
-                            if (!is2026 && cData.platformId !== 'EDUCATIVA_R10') continue;
+                            // En Plataforma Educativa R10: no mostrar cursos de CFP 403 (EDU)
+                            if (cData.platformId === 'EDU' || cDoc.id === 'diseño' || cDoc.id === 'diseño2') continue;
                         }
                         activeCourses.push({ id: cDoc.id, ...cData });
                     }
@@ -245,9 +271,15 @@ function refreshCounters() {
 function processAndClean(key) {
     if (!studentData[key]) return;
     const map = new Map();
+    const docentesEmails = ['ndinova@abc.gob.ar', 'abottini2@abc.gob.ar', 'mparera2@abc.gob.ar', 'sanchezjuanmanuel@abc.gob.ar'];
+    const docentesDnis = ['92828993', '17546846', '28925238'];
     studentData[key].forEach(s => {
-        // Aseguramos que el DNI sea string y sin espacios para comparaciones
-        const dniClean = String(s.dni || s.id).trim();
+        const sEmail = String(s.email || '').toLowerCase().trim();
+        const sDni = String(s.dni || s.id || '').trim();
+        // Los docentes de R10 no deben figurar como alumnos en la plataforma
+        if (docentesEmails.includes(sEmail) || docentesDnis.includes(sDni)) return;
+
+        const dniClean = sDni;
         s.dni = dniClean;
         s.edad = cleanAge(s.edad, s.nacimiento);
         if (!s.sexo || s.sexo.length < 1) s.sexo = guessGender(s.full_name);
@@ -1931,7 +1963,8 @@ async function saveAdminUser() {
             nombre, 
             role: role, 
             is_admin: true,
-            cursos: cursos_seleccionados
+            cursos: cursos_seleccionados,
+            platformId: window.PLATFORM_ID
         };
         if (dni_pass) {
             userData.password_init = dni_pass;
@@ -2305,7 +2338,7 @@ function editUser(email) {
                         if (is2026) return;
                         if (course.platformId && course.platformId !== window.PLATFORM_ID) return;
                     } else {
-                        if (!is2026 && course.platformId !== 'EDUCATIVA_R10') return;
+                        if (course.platformId === 'EDU' || cdoc.id === 'diseño' || cdoc.id === 'diseño2') return;
                     }
                     const isChecked = u.cursos === 'all' || (Array.isArray(u.cursos) && u.cursos.includes(cdoc.id)) ? 'checked' : '';
                     const div = document.createElement('div');
