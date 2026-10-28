@@ -1,35 +1,5 @@
 // Administración CFP 403 // Core Admin Logic v9.18.3 (RBAC & Multi-Course Logistics)
 let adminSession = JSON.parse(localStorage.getItem('admin_session'));
-
-// Validación de sesión para evitar conflictos entre plataformas bajo el mismo dominio
-function isValidAdminSessionForPlatform(session) {
-    if (!session) return false;
-    if (session.role === 'super-admin') return true;
-    const sessionEmail = String(session.email || '').toLowerCase().trim();
-    if (sessionEmail === 'sanchezjuanmanuel@abc.gob.ar') return true;
-
-    const isCfp = Boolean(window.IS_PLATAFORMA_CFP403 || window.PLATFORM_ID === 'EDU');
-    const isR10 = Boolean(window.IS_PLATAFORMA_EDUCATIVA_R10 || window.IS_PLATAFORMA_R10_LEGACY || window.PLATFORM_ID === 'EDUCATIVA_R10' || window.PLATFORM_ID === 'R10');
-
-    if (isR10) {
-        // En R10, German Massa no es docente
-        if (sessionEmail === 'germanmassa@abc.gob.ar') return false;
-        if (session.platformId === 'EDU') return false;
-        return true;
-    }
-    if (isCfp) {
-        const docentesR10 = ['ndinova@abc.gob.ar', 'abottini2@abc.gob.ar', 'mparera2@abc.gob.ar'];
-        if (docentesR10.includes(sessionEmail)) return false;
-        if (session.platformId === 'R10' || session.platformId === 'EDUCATIVA_R10') return false;
-        return true;
-    }
-    return true;
-}
-
-if (adminSession && !isValidAdminSessionForPlatform(adminSession)) {
-    localStorage.removeItem('admin_session');
-    adminSession = null;
-}
 if (!adminSession) { window.location.href = 'index.html'; }
 
 let studentData = {};
@@ -93,13 +63,6 @@ async function loadStudentsFromFirebase() {
                     const cDoc = await db.collection('cursos').doc(cid).get();
                     if (cDoc.exists) {
                         const cData = cDoc.data();
-                        const is2026 = window.isCourse2026(cDoc.id, cData.nombre);
-                        if (!window.IS_PLATAFORMA_EDUCATIVA_R10) {
-                            if (is2026) continue;
-                        } else {
-                            // En Plataforma Educativa R10: no mostrar cursos de CFP 403 (EDU)
-                            if (cData.platformId === 'EDU' || cDoc.id === 'diseño' || cDoc.id === 'diseño2') continue;
-                        }
                         activeCourses.push({ id: cDoc.id, ...cData });
                     }
                 }
